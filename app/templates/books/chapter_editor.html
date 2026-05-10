@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+{% block title %}{% if chapter %}Редактировать главу{% else %}Новая глава{% endif %} — {{ site_name }}{% endblock %}
+
+{% block content %}
+<div class="container" style="padding-top:calc(var(--navbar-h)+2rem);padding-bottom:3rem;max-width:900px;">
+  <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1.5rem;">
+    <a href="/write/{{ book.id }}" style="display:flex;align-items:center;color:var(--text-secondary);">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m15 18-6-6 6-6"/></svg>
+    </a>
+    <div>
+      <div style="font-family:var(--font-sans);font-size:0.82rem;color:var(--text-muted);">{{ book.title }}</div>
+      <h1 style="font-family:var(--font-serif);font-size:1.6rem;font-weight:700;">{% if chapter %}Редактировать главу{% else %}Новая глава{% endif %}</h1>
+    </div>
+  </div>
+
+  {# Use hidden input for is_published to avoid two-button issues #}
+  <input type="hidden" id="is_published_hidden" value="false">
+
+  <form method="post" action="{% if chapter %}/write/{{ book.id }}/chapters/{{ chapter.id }}{% else %}/write/{{ book.id }}/chapters/new{% endif %}"
+        id="chapter-form">
+
+    <div style="background:var(--bg-surface);border-radius:var(--radius-xl);border:1px solid var(--border-light);overflow:hidden;margin-bottom:1rem;">
+      <div style="padding:1.5rem 1.5rem 0;">
+        <label class="form-label">Название главы *</label>
+        <input type="text" name="title" class="form-control" required maxlength="300"
+               value="{{ chapter.title if chapter else '' }}" placeholder="Глава 1: Начало пути">
+      </div>
+
+      <div style="padding:1rem 1.5rem 1.5rem;">
+        <label class="form-label">Текст главы *</label>
+        <!-- Toolbar -->
+        <div style="display:flex;align-items:center;gap:0.25rem;padding:0.55rem 0.65rem;background:#f8f6f2;border:1px solid var(--border-light);border-radius:var(--radius-md) var(--radius-md) 0 0;flex-wrap:wrap;">
+          <button type="button" id="btn-bold" title="Жирный (Ctrl+B)"
+                  style="padding:0.25rem 0.55rem;border-radius:4px;border:1px solid var(--border-light);background:white;font-weight:700;font-size:0.88rem;cursor:pointer;min-width:30px;line-height:1.4;">Ж</button>
+          <button type="button" id="btn-italic" title="Курсив (Ctrl+I)"
+                  style="padding:0.25rem 0.55rem;border-radius:4px;border:1px solid var(--border-light);background:white;font-style:italic;font-size:0.88rem;cursor:pointer;min-width:30px;line-height:1.4;">К</button>
+          <div style="width:1px;height:18px;background:var(--border-mid);margin:0 0.15rem;"></div>
+          <button type="button" id="btn-sep" title="Разделитель (* * *)"
+                  style="padding:0.25rem 0.65rem;border-radius:4px;border:1px solid var(--border-light);background:white;font-size:0.82rem;cursor:pointer;letter-spacing:.1em;">* * *</button>
+          <button type="button" id="btn-para" title="Новый абзац"
+                  style="padding:0.25rem 0.55rem;border-radius:4px;border:1px solid var(--border-light);background:white;font-size:0.88rem;cursor:pointer;font-family:monospace;min-width:30px;">¶</button>
+          <button type="button" id="btn-dash" title="Длинное тире —"
+                  style="padding:0.25rem 0.55rem;border-radius:4px;border:1px solid var(--border-light);background:white;font-size:0.88rem;cursor:pointer;min-width:30px;font-weight:500;">—</button>
+          <span style="margin-left:auto;font-family:var(--font-sans);font-size:0.76rem;color:var(--text-muted);" id="word-count">0 слов</span>
+        </div>
+        <textarea id="chapter-ta" name="content" required
+                  placeholder="Начните писать здесь..."
+                  style="width:100%;min-height:580px;padding:1.5rem;border:1px solid var(--border-light);border-top:none;border-radius:0 0 var(--radius-md) var(--radius-md);background:var(--bg-surface);font-family:'Cormorant Garamond',Georgia,serif;font-size:1.08rem;line-height:1.9;outline:none;resize:none;display:block;box-sizing:border-box;">{{ chapter.content if chapter else '' }}</textarea>
+      </div>
+    </div>
+
+    <!-- Author note -->
+    <div style="background:var(--bg-surface);border-radius:var(--radius-xl);border:1px solid var(--border-light);padding:1.25rem;margin-bottom:1.25rem;">
+      <label style="display:block;font-family:var(--font-sans);font-size:0.85rem;font-weight:600;margin-bottom:0.5rem;">Примечание автора <span style="color:var(--text-muted);font-weight:400;">(необязательно)</span></label>
+      <textarea name="author_note" class="form-control" rows="2" maxlength="2000"
+                placeholder="Примечание к этой главе...">{% if chapter and chapter.author_note %}{{ chapter.author_note }}{% endif %}</textarea>
+    </div>
+
+    <!-- Hidden is_published field -->
+    <input type="hidden" name="is_published" id="is_published_field" value="{% if chapter and chapter.is_published %}true{% else %}false{% endif %}">
+
+    <!-- Action buttons -->
+    <div style="background:var(--bg-surface);border-radius:var(--radius-xl);border:1px solid var(--border-light);padding:1.25rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
+      <a href="/write/{{ book.id }}" class="btn btn-ghost">Отмена</a>
+      <div style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap;">
+        <button type="button" onclick="submitAs(false)"
+                style="padding:0.6rem 1.5rem;border-radius:var(--radius-full);border:1px solid var(--border-mid);background:white;font-family:var(--font-sans);font-size:0.9rem;font-weight:500;color:var(--text-secondary);cursor:pointer;">
+          Сохранить черновик
+        </button>
+        <button type="button" onclick="submitAs(true)"
+                style="padding:0.65rem 1.75rem;border-radius:var(--radius-full);border:none;background:linear-gradient(135deg,var(--primary),var(--primary-light));color:white;font-family:var(--font-sans);font-size:0.95rem;font-weight:600;cursor:pointer;box-shadow:0 4px 12px rgba(139,115,85,0.3);">
+          Опубликовать главу
+        </button>
+      </div>
+    </div>
+
+    {% if chapter %}
+    <div style="margin-top:0.75rem;display:flex;justify-content:flex-end;">
+      <button type="button" onclick="toggleChapterVisibility({{ chapter.id }}, this)"
+              style="font-family:var(--font-sans);font-size:0.82rem;color:var(--text-muted);background:none;border:none;cursor:pointer;text-decoration:underline;">
+        {{ 'Показать главу (сейчас скрыта)' if chapter.is_draft_hidden else 'Скрыть главу в черновик' }}
+      </button>
+    </div>
+    {% endif %}
+  </form>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(function() {
+  var ta = document.getElementById('chapter-ta');
+  var wc = document.getElementById('word-count');
+
+  // Word count
+  function updateWC() {
+    if (!ta || !wc) return;
+    var words = ta.value.trim() ? ta.value.trim().split(/\s+/).length : 0;
+    wc.textContent = words.toLocaleString('ru') + ' слов';
+  }
+  if (ta) { ta.addEventListener('input', updateWC); updateWC(); }
+
+  // Core insert/wrap function
+  function wrapSelection(before, after) {
+    if (!ta) return;
+    var start = ta.selectionStart, end = ta.selectionEnd;
+    var sel = ta.value.substring(start, end);
+    var newText;
+    if (sel) {
+      // Toggle: if already wrapped, unwrap
+      var bLen = before.length, aLen = after.length;
+      var hasBefore = ta.value.substring(start - bLen, start) === before;
+      var hasAfter = ta.value.substring(end, end + aLen) === after;
+      if (hasBefore && hasAfter) {
+        // Unwrap
+        ta.value = ta.value.substring(0, start - bLen) + sel + ta.value.substring(end + aLen);
+        ta.selectionStart = start - bLen;
+        ta.selectionEnd = end - bLen;
+      } else {
+        newText = before + sel + after;
+        ta.value = ta.value.substring(0, start) + newText + ta.value.substring(end);
+        ta.selectionStart = start + before.length;
+        ta.selectionEnd = end + before.length;
+      }
+    } else {
+      // No selection: insert markers and place cursor between them
+      ta.value = ta.value.substring(0, start) + before + after + ta.value.substring(end);
+      ta.selectionStart = ta.selectionEnd = start + before.length;
+    }
+    ta.focus();
+    updateWC();
+  }
+
+  function insertAt(text) {
+    if (!ta) return;
+    var pos = ta.selectionStart;
+    ta.value = ta.value.substring(0, pos) + text + ta.value.substring(pos);
+    ta.selectionStart = ta.selectionEnd = pos + text.length;
+    ta.focus();
+    updateWC();
+  }
+
+  // Button handlers
+  document.getElementById('btn-bold')?.addEventListener('click', function() { wrapSelection('**', '**'); });
+  document.getElementById('btn-italic')?.addEventListener('click', function() { wrapSelection('*', '*'); });
+  document.getElementById('btn-sep')?.addEventListener('click', function() { insertAt('\n\n* * *\n\n'); });
+  document.getElementById('btn-para')?.addEventListener('click', function() { insertAt('\n\n'); });
+  document.getElementById('btn-dash')?.addEventListener('click', function() { insertAt('— '); });
+
+  // Keyboard shortcuts
+  if (ta) {
+    ta.addEventListener('keydown', function(e) {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'b') { e.preventDefault(); wrapSelection('**', '**'); }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'i') { e.preventDefault(); wrapSelection('*', '*'); }
+    });
+  }
+
+  // Submit helpers - set flag then submit natively
+  window.submitAs = function(publish) {
+    var field = document.getElementById('is_published_field');
+    if (field) field.value = publish ? 'true' : 'false';
+    var form = document.getElementById('chapter-form');
+    if (form) {
+      // Use requestSubmit if available (no onsubmit loop), else direct submit
+      if (form.requestSubmit) { form.requestSubmit(); } else { form.submit(); }
+    }
+  };
+})();
+</script>
+{% endblock %}

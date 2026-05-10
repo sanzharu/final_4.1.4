@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% block title %}Книги — Панель — {{ site_name }}{% endblock %}
+{% block content %}
+<div class="container" style="padding-top:calc(var(--navbar-h)+1.5rem);padding-bottom:3rem;">
+  <div class="admin-layout">
+    <aside>{% include "admin/sidebar.html" %}</aside>
+    <div style="min-width:0;">
+      <div style="margin-bottom:1.5rem;">
+        <h1 style="font-family:var(--font-serif);font-size:2rem;font-weight:700;">Книги</h1>
+        <p style="font-family:var(--font-sans);font-size:0.88rem;color:var(--text-muted);">Всего: {{ total }}</p>
+      </div>
+
+      <!-- Status tabs -->
+      <div style="display:flex;gap:0.4rem;margin-bottom:1rem;flex-wrap:wrap;">
+        {% for s, label in [('published','Опубликованные'),('moderation','На модерации'),('draft','Черновики'),('completed','Завершённые'),('ongoing','В процессе'),('hidden','Скрытые')] %}
+          <a href="/admin/books?status={{ s }}"
+             style="font-family:var(--font-sans);font-size:0.82rem;font-weight:500;padding:0.35rem 0.9rem;border-radius:var(--radius-full);border:1px solid {% if active_status == s %}var(--primary){% else %}var(--border-light){% endif %};background:{% if active_status == s %}var(--primary){% else %}var(--bg-surface){% endif %};color:{% if active_status == s %}white{% else %}var(--text-secondary){% endif %};">
+            {{ label }}
+          </a>
+        {% endfor %}
+      </div>
+
+      <!-- Search -->
+      <form method="get" style="display:flex;gap:0.75rem;margin-bottom:1.25rem;">
+        <input type="hidden" name="status" value="{{ active_status }}">
+        <input type="search" name="search" class="form-control" placeholder="Поиск по названию..."
+               value="{{ search }}" style="max-width:320px;">
+        <button type="submit" class="btn btn-primary btn-sm">Найти</button>
+      </form>
+
+      <div style="background:var(--bg-surface);border-radius:var(--radius-lg);border:1px solid var(--border-light);overflow:hidden;">
+        <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
+          <colgroup>
+            <col style="width:30%;">
+            <col style="width:10%;">
+            <col style="width:10%;">
+            <col style="width:8%;">
+            <col style="width:12%;">
+            <col style="width:30%;">
+          </colgroup>
+          <thead>
+            <tr style="background:#f8f6f2;border-bottom:1px solid var(--border-light);">
+              {% for h in ['Название','Статус','Просмотры','Рейтинг','Дата','Действия'] %}
+              <th style="padding:0.75rem 0.85rem;text-align:left;font-family:var(--font-sans);font-size:0.82rem;font-weight:600;color:var(--text-secondary);">{{ h }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for b in books %}
+            <tr style="border-bottom:1px solid rgba(0,0,0,0.04);">
+              <td style="padding:0.85rem 0.85rem;overflow:hidden;">
+                <a href="/books/{{ b.slug }}" style="font-family:var(--font-sans);font-size:0.88rem;font-weight:500;color:var(--text-primary);display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ b.title }}</a>
+                <div style="font-family:var(--font-sans);font-size:0.75rem;color:var(--text-muted);">
+                  by {% if b.author %}{{ b.author.display_name or b.author.username }}{% else %}#{{ b.author_id }}{% endif %}
+                </div>
+              </td>
+              <td style="padding:0.85rem 0.85rem;font-family:var(--font-sans);font-size:0.82rem;color:var(--text-muted);white-space:nowrap;">{{ b.status.value }}</td>
+              <td style="padding:0.85rem 0.85rem;font-family:var(--font-sans);font-size:0.85rem;">{{ b.views_count | fmt_number }}</td>
+              <td style="padding:0.85rem 0.85rem;font-family:var(--font-sans);font-size:0.85rem;color:var(--primary);">{{ "%.1f"|format(b.avg_rating) }}</td>
+              <td style="padding:0.85rem 0.85rem;font-family:var(--font-sans);font-size:0.82rem;color:var(--text-muted);white-space:nowrap;">{{ b.created_at | fmt_date }}</td>
+              <td style="padding:0.85rem 0.85rem;">
+                <div style="display:flex;gap:0.35rem;flex-wrap:wrap;">
+                  <!-- Feature/Unfeature -->
+                  <form method="post" action="/admin/books/{{ b.id }}/feature" style="display:inline;">
+                    <button type="submit"
+                            style="font-family:var(--font-sans);font-size:0.75rem;padding:0.25rem 0.6rem;border-radius:var(--radius-full);border:1px solid {% if b.is_featured %}var(--primary){% else %}var(--border-mid){% endif %};background:{% if b.is_featured %}var(--primary-dim){% else %}transparent{% endif %};color:{% if b.is_featured %}var(--primary){% else %}var(--text-secondary){% endif %};cursor:pointer;white-space:nowrap;">
+                      {{ 'Снять рек.' if b.is_featured else 'Рекомендовать' }}
+                    </button>
+                  </form>
+                  <!-- Moderation -->
+                  <form method="post" action="/admin/books/{{ b.id }}/moderation" style="display:inline;">
+                    <button type="submit"
+                            style="font-family:var(--font-sans);font-size:0.75rem;padding:0.25rem 0.6rem;border-radius:var(--radius-full);border:1px solid #f59e0b;background:{% if b.is_on_moderation %}#fef3c7{% else %}transparent{% endif %};color:#d97706;cursor:pointer;white-space:nowrap;">
+                      {{ 'С модерации' if b.is_on_moderation else 'На модерацию' }}
+                    </button>
+                  </form>
+                  <!-- Edit -->
+                  <a href="/write/{{ b.id }}"
+                     style="font-family:var(--font-sans);font-size:0.75rem;padding:0.25rem 0.6rem;border-radius:var(--radius-full);border:1px solid var(--border-mid);color:var(--text-secondary);white-space:nowrap;display:inline-block;">
+                    Редактировать
+                  </a>
+                  <!-- Delete/Restore -->
+                  {% if b.is_draft_hidden %}
+                  <form method="post" action="/admin/books/{{ b.id }}/restore" style="display:inline;">
+                    <button type="submit" style="font-family:var(--font-sans);font-size:0.75rem;padding:0.25rem 0.6rem;border-radius:var(--radius-full);border:1px solid #22c55e;background:transparent;color:#16a34a;cursor:pointer;white-space:nowrap;">
+                      Восстановить
+                    </button>
+                  </form>
+                  {% else %}
+                  <button onclick="showDeleteModal({{ b.id }}, '{{ b.title | replace("'", "\\'") }}')"
+                          style="font-family:var(--font-sans);font-size:0.75rem;padding:0.25rem 0.6rem;border-radius:var(--radius-full);border:1px solid #fca5a5;background:transparent;color:#dc2626;cursor:pointer;white-space:nowrap;">
+                    Удалить
+                  </button>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      {% if pages > 1 %}
+      <nav class="pagination">
+        {% for p in range(1, pages+1) %}
+          <a href="/admin/books?page={{ p }}&status={{ active_status }}&search={{ search }}" class="page-link {% if p == page %}active{% endif %}">{{ p }}</a>
+        {% endfor %}
+      </nav>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Delete modal -->
+<div id="delete-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:500;align-items:center;justify-content:center;">
+  <div style="background:var(--bg-surface);border-radius:var(--radius-xl);padding:2rem;max-width:420px;width:90%;box-shadow:var(--shadow-xl);">
+    <h3 style="font-family:var(--font-serif);font-size:1.2rem;margin-bottom:0.5rem;">Удалить книгу</h3>
+    <p style="font-family:var(--font-sans);font-size:0.88rem;color:var(--text-muted);margin-bottom:1rem;">«<span id="delete-book-name"></span>» будет снята с публикации. Автор получит уведомление.</p>
+    <form id="delete-form" method="post">
+      <div class="form-group">
+        <label class="form-label">Причина</label>
+        <select name="reason" class="form-control">
+          <option value="Нарушение правил платформы">Нарушение правил платформы</option>
+          <option value="Запрещённый контент">Запрещённый контент</option>
+          <option value="Авторские права">Нарушение авторских прав</option>
+          <option value="Спам">Спам</option>
+          <option value="Другое">Другое</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:0.75rem;justify-content:flex-end;margin-top:1rem;">
+        <button type="button" onclick="hideDeleteModal()" class="btn btn-ghost">Отмена</button>
+        <button type="submit" class="btn btn-primary" style="background:#dc2626;">Удалить</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+{% block extra_scripts %}
+<script>
+function showDeleteModal(id, name) {
+  document.getElementById('delete-book-name').textContent = name;
+  document.getElementById('delete-form').action = '/admin/books/' + id + '/delete';
+  document.getElementById('delete-modal').style.display = 'flex';
+}
+function hideDeleteModal() { document.getElementById('delete-modal').style.display = 'none'; }
+document.getElementById('delete-modal')?.addEventListener('click', function(e) { if (e.target === this) hideDeleteModal(); });
+</script>
+{% endblock %}

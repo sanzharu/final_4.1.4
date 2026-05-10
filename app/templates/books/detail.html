@@ -1,0 +1,412 @@
+{% extends "base.html" %}
+{% block title %}{{ book.title }} — {{ site_name }}{% endblock %}
+{% block meta_description %}{{ book.description[:160] if book.description else book.title }}{% endblock %}
+
+{% block content %}
+<div class="container" style="padding-top:calc(var(--navbar-h) + 2rem);padding-bottom:3rem;">
+
+  <!-- ── Book Hero (grid: cover left, info right) ───────────────────────── -->
+  <div class="book-hero">
+
+    <!-- Cover -->
+    <div class="book-hero-cover">
+      {% if book.cover_url %}
+        <img src="{{ book.cover_url }}" alt="Обложка {{ book.title }}">
+      {% endif %}
+    </div>
+
+    <!-- Info -->
+    <div>
+      <!-- Genre tag -->
+      {% if book.genre %}
+        <div style="margin-bottom:0.75rem;">
+          <a href="/catalog?genre={{ book.genre.value }}" class="book-genre-tag">{{ book.genre.value | genre_label }}</a>
+        </div>
+      {% endif %}
+
+      <h1 class="book-hero-title">{{ book.title }}</h1>
+
+      <div class="book-hero-author">
+        <a href="/profile/{{ book.author.username }}">{{ book.author.display_name or book.author.username }}</a>
+      </div>
+
+      <!-- Stats row -->
+      <div class="book-stats" style="margin-bottom:1.25rem;">
+        {% if book.avg_rating > 0 %}
+          <span style="color:var(--primary);font-weight:600;">★ {{ "%.1f"|format(book.avg_rating) }} ({{ book.reviews_count }})</span>
+        {% endif %}
+        <span>{{ book.views_count | fmt_number }} просм.</span>
+        <span>{{ book.chapters_count }} глав</span>
+        <span>{{ book.words_count | fmt_words }}</span>
+        {% if book.is_adult %}
+          <span style="background:var(--accent-rose);color:#c2185b;padding:0.1rem 0.5rem;border-radius:var(--radius-full);font-size:0.75rem;font-weight:600;">18+</span>
+        {% endif %}
+        <span class="badge badge-warning">{{ book.status.value | status_label }}</span>
+      </div>
+
+      <!-- Direction pill -->
+      {% if book.direction %}
+        <div style="margin-bottom:0.5rem;">
+          {% if book.direction == 'gen' %}
+            <span style="font-size:0.78rem;font-weight:500;padding:0.2rem 0.65rem;border-radius:20px;background:#E3F2FD;color:#1565C0;">Джен</span>
+          {% elif book.direction == 'het' %}
+            <span style="font-size:0.78rem;font-weight:500;padding:0.2rem 0.65rem;border-radius:20px;background:#FCE4EC;color:#C2185B;">Гет</span>
+          {% endif %}
+        </div>
+      {% endif %}
+
+      <!-- Tags -->
+      {% if book.tags %}
+        {% set normal_tags = [] %}
+        {% set spoiler_tags = [] %}
+        {% for bt in book.tags %}
+          {% if bt.is_spoiler %}
+            {% set _ = spoiler_tags.append(bt) %}
+          {% else %}
+            {% set _ = normal_tags.append(bt) %}
+          {% endif %}
+        {% endfor %}
+        {% if normal_tags %}
+          <div style="display:flex;flex-wrap:wrap;gap:0.35rem;margin-bottom:0.5rem;">
+            {% for bt in normal_tags %}
+              <a href="/catalog?tag={{ bt.tag.name | urlencode }}"
+                 style="font-family:var(--font-sans);font-size:0.78rem;padding:0.2rem 0.65rem;border-radius:20px;background:var(--accent-peach);color:#8b4513;text-decoration:none;">
+                {{ bt.tag.name }}
+              </a>
+            {% endfor %}
+          </div>
+        {% endif %}
+        {% if spoiler_tags %}
+          <div style="display:flex;flex-wrap:wrap;align-items:center;gap:0.35rem;margin-bottom:0.5rem;">
+            <button onclick="toggleSpoilerTags(this)"
+                    style="font-family:var(--font-sans);font-size:0.75rem;padding:0.18rem 0.65rem;border-radius:20px;background:#fff3cd;color:#856404;border:1px solid #ffc107;cursor:pointer;">
+              Спойлеры ({{ spoiler_tags|length }})
+            </button>
+            <span id="spoiler-tags-wrap" style="display:none;flex-wrap:wrap;gap:0.35rem;">
+              {% for bt in spoiler_tags %}
+                <span style="font-family:var(--font-sans);font-size:0.78rem;padding:0.2rem 0.65rem;border-radius:20px;background:#fff3cd;color:#856404;border:1px solid #ffc107;">{{ bt.tag.name }}</span>
+              {% endfor %}
+            </span>
+          </div>
+        {% endif %}
+      {% endif %}
+
+      <!-- Content warnings -->
+      {% if book.content_warnings %}
+        {% set warnings_map = {
+          'violence':'Насилие','cruel_scenes':'Жестокие сцены','language':'Нецензурная лексика',
+          'dark_themes':'Тёмные темы','alcohol':'Алкоголь','drugs':'Наркотики','smoking':'Курение',
+          'self_harm':'Членовредительство','suicidal':'Суицидальные мысли',
+          'psychological_abuse':'Психологическое насилие','sexual_abuse':'Сексуальное насилие',
+          'toxic_relations':'Токсичные отношения','mental_disorders':'Психические расстройства',
+          'ooc':'OOC','ojp':'ОЖП','omp':'ОМП',
+          'main_death':'Смерть главных персонажей','minor_death':'Смерть второстепенного персонажа',
+          'bad_ending':'Плохой финал','open_ending':'Открытый финал','happy_ending':'Хэппи-энд',
+          'tragedy':'Трагедия','betrayal':'Предательство','noncon':'Нонкон',
+          'unhappy_ending':'Несчастливый финал','unexpected_turn':'Неожиданный поворот',
+          'love_triangle':'Любовный треугольник',
+          'magic':'Магия','demons':'Демоны','mythology':'Мифология','spirits':'Духи',
+          'rituals':'Ритуалы','love_hate':'Любовь / Ненависть','secret_rel':'Отношения в тайне',
+          'reunion':'Воссоединение','jealousy':'Ревность','war':'Война','friendship':'Дружба',
+          'angst':'Ангст','fluff':'Флафф','drama':'Драма','humor':'Юмор',
+          'hurt_comfort':'Hurt/Comfort','mary_sue':'Мэри Сью',
+          'soulmates':'Родственные души','popadantsy':'Попаданцы','omegaverse':'Омегаверс',
+          'au':'AU','slowburn':'Медленное развитие (Слоуберн)',
+          'enemies_lovers':'Враги→влюблённые','enemies_to_lovers':'От врагов к возлюбленным',
+          'friends_to_lovers':'От друзей к возлюбленным','fake_relationship':'Фиктивные отношения',
+          'second_chance':'Второй шанс','found_family':'Обретённая семья',
+          'forbidden_love':'Запретная любовь','opposites_attract':'Противоположности притягиваются',
+          'amnesia':'Потеря памяти','reincarnation':'Перерождение',
+          'family':'Семья','loneliness':'Одиночество','politics':'Политика',
+          'mystery':'Тайны','investigation':'Расследование','survival':'Выживание',
+          'school':'Школа / академия','kingdom':'Королевство'
+        } %}
+        {% set spoiler_keys = ['main_death','bad_ending','tragedy','betrayal','noncon','unhappy_ending'] %}
+        {% set warning_list = book.content_warnings | from_json %}
+        {% set normal_warnings = [] %}
+        {% set spoiler_warnings = [] %}
+        {% for w in warning_list %}
+          {% if w in spoiler_keys %}{% set _ = spoiler_warnings.append(w) %}
+          {% else %}{% set _ = normal_warnings.append(w) %}{% endif %}
+        {% endfor %}
+        {% if normal_warnings or spoiler_warnings %}
+          <div style="display:flex;flex-wrap:wrap;align-items:center;gap:0.35rem;margin-bottom:0.75rem;">
+            <span style="font-family:var(--font-sans);font-size:0.72rem;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em;">Метки:</span>
+            {% for key in normal_warnings %}
+              <span style="font-family:var(--font-sans);font-size:0.75rem;padding:0.15rem 0.55rem;border-radius:20px;background:#fef2f2;color:#dc2626;border:1px solid #fecaca;">{{ warnings_map.get(key, key) }}</span>
+            {% endfor %}
+            {% if spoiler_warnings %}
+              <button onclick="toggleSpoilerWarnings(this)"
+                      style="font-family:var(--font-sans);font-size:0.75rem;padding:0.15rem 0.55rem;border-radius:20px;background:#fff3cd;color:#856404;border:1px solid #ffc107;cursor:pointer;">
+                Спойлеры ({{ spoiler_warnings|length }})
+              </button>
+              <span id="spoiler-warnings-wrap" style="display:none;flex-wrap:wrap;gap:0.35rem;">
+                {% for key in spoiler_warnings %}
+                  <span style="font-family:var(--font-sans);font-size:0.75rem;padding:0.15rem 0.55rem;border-radius:20px;background:#fff3cd;color:#856404;border:1px solid #ffc107;">{{ warnings_map.get(key, key) }}</span>
+                {% endfor %}
+              </span>
+            {% endif %}
+          </div>
+        {% endif %}
+      {% endif %}
+
+      <!-- Description -->
+      {% if book.description %}
+        <p style="color:var(--text-secondary);line-height:1.7;margin-bottom:1.5rem;max-width:600px;">{{ book.description }}</p>
+      {% endif %}
+
+      <!-- Action buttons -->
+      <div class="book-actions">
+        {% if chapters %}
+          {% if progress %}
+            <a href="/books/{{ book.slug }}/chapters/{{ progress.chapter.number if progress.chapter else 1 }}" class="btn btn-primary btn-lg">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+              Продолжить чтение
+            </a>
+          {% else %}
+            <a href="/books/{{ book.slug }}/chapters/1" class="btn btn-primary btn-lg">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+              Начать читать
+            </a>
+          {% endif %}
+        {% endif %}
+
+        {% if current_user %}
+          <button class="btn btn-outline {% if bookmarked %}active{% endif %}"
+                  data-bookmark="{{ book.id }}"
+                  aria-pressed="{{ 'true' if bookmarked else 'false' }}"
+                  aria-label="Закладка"
+                  style="{% if bookmarked %}background:var(--primary);color:white;{% endif %}">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="{% if bookmarked %}currentColor{% else %}none{% endif %}" stroke="currentColor" stroke-width="2"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>
+            <span data-count>{{ book.bookmarks_count }}</span>
+          </button>
+        {% endif %}
+
+        {% if current_user and current_user.id != book.author_id and book.status.value == 'ongoing' %}
+          <button id="subscribe-btn" class="btn btn-outline" onclick="toggleSubscribe()"
+                  data-book-id="{{ book.id }}"
+                  style="min-width:145px;">
+            Загрузка...
+          </button>
+        {% endif %}
+
+        {% if current_user and (current_user.id == book.author_id or current_user.is_moderator_or_higher) %}
+          <a href="/write/{{ book.id }}" class="btn btn-ghost">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            Редактировать
+          </a>
+          {% if current_user.id == book.author_id %}
+            <button onclick="toggleBookVisibility({{ book.id }}, this)"
+                    class="btn btn-ghost btn-sm" id="vis-btn"
+                    title="{{ 'Показать книгу' if book.is_draft_hidden else 'Скрыть книгу' }}"
+                    style="padding:0.45rem 0.65rem;">
+              {% if book.is_draft_hidden %}
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+              {% else %}
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              {% endif %}
+            </button>
+          {% endif %}
+        {% endif %}
+
+        {% if current_user and current_user.id != book.author_id %}
+          <button onclick="openReportModal({{ book.id }})" class="btn btn-ghost" style="color:var(--text-muted);font-size:0.82rem;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            Пожаловаться
+          </button>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Chapters ────────────────────────────────────────────────────────── -->
+  {% if chapters %}
+  <section style="margin-bottom:3rem;">
+    <h2 style="font-family:var(--font-serif);font-size:1.5rem;font-weight:700;margin-bottom:1rem;">Главы</h2>
+    <div style="display:flex;flex-direction:column;gap:0.5rem;">
+      {% for ch in chapters %}
+        <a href="/books/{{ book.slug }}/chapters/{{ ch.number }}" class="chapter-item">
+          <span class="chapter-num">{{ ch.number }}</span>
+          <span class="chapter-title">{{ ch.title }}</span>
+          <span class="chapter-meta">{{ ch.words_count | fmt_words }}</span>
+          {% if progress and progress.chapter_id == ch.id %}
+            <span style="color:var(--primary);font-size:0.75rem;font-weight:600;">→ продолжить чтение</span>
+          {% endif %}
+        </a>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  <!-- ── Reviews ─────────────────────────────────────────────────────────── -->
+  <section>
+    <div class="section-header">
+      <h2 class="section-title">Отзывы {% if rev_total %}<span style="font-size:1rem;font-weight:400;color:var(--text-muted);">({{ rev_total }})</span>{% endif %}</h2>
+    </div>
+
+    {% if current_user and not user_review %}
+    <div class="card" style="margin-bottom:2rem;">
+      <h4 style="font-family:var(--font-serif);font-size:1.1rem;margin-bottom:1rem;">Оставить отзыв</h4>
+      <div id="star-rating" style="display:flex;gap:0.4rem;font-size:2rem;cursor:pointer;margin-bottom:1rem;">
+        {% for i in range(1, 6) %}
+          <span data-star="{{ i }}" role="button" tabindex="0" style="color:#d1d5db;transition:color 0.15s;">☆</span>
+        {% endfor %}
+      </div>
+      <input type="hidden" id="rating-input" value="0">
+      <textarea id="review-text" class="form-control" placeholder="Ваш отзыв (необязательно)..." rows="3" style="margin-bottom:0.75rem;"></textarea>
+      <label style="display:flex;align-items:center;gap:0.5rem;font-family:var(--font-sans);font-size:0.85rem;color:var(--text-muted);margin-bottom:0.75rem;cursor:pointer;">
+        <input type="checkbox" id="review-spoiler"> Содержит спойлер
+      </label>
+      <button class="btn btn-primary" id="submit-review" data-book-id="{{ book.id }}">Опубликовать отзыв</button>
+    </div>
+    {% endif %}
+
+    {% if reviews %}
+      <div class="reviews-list">
+        {% for rev in reviews %}
+        <article class="review-card">
+          <div class="review-header">
+            <div class="review-avatar">{{ (rev.user.display_name or rev.user.username)[0] | upper }}</div>
+            <div>
+              <div style="font-weight:600;"><a href="/profile/{{ rev.user.username }}">{{ rev.user.display_name or rev.user.username }}</a></div>
+              <div class="review-date">{{ rev.created_at | fmt_date }}</div>
+            </div>
+            <div style="margin-left:auto;color:#f59e0b;">{{ rev.rating | stars }}</div>
+          </div>
+          {% if rev.text %}
+            {% if rev.is_spoiler %}
+              <div class="review-spoiler-wrap">
+                <button type="button" class="spoiler-toggle-btn" onclick="toggleReviewSpoiler(this)">
+                  ⚠ Содержит спойлеры — нажмите, чтобы прочитать
+                </button>
+                <div class="review-text spoiler-hidden" style="display:none;">{{ rev.text }}</div>
+              </div>
+            {% else %}
+              <div class="review-text">{{ rev.text }}</div>
+            {% endif %}
+          {% endif %}
+        </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="text-dim">Отзывов пока нет. Будьте первым!</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}
+
+{% block extra_styles %}
+<style>
+.spoiler-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.85rem;
+  border-radius: 6px;
+  border: 1px solid var(--border-mid, #d1cfc9);
+  background: var(--bg-card, #f9f8f6);
+  color: var(--text-muted, #888);
+  font-family: var(--font-sans, sans-serif);
+  font-size: 0.84rem;
+  cursor: pointer;
+  margin-bottom: 0.5rem;
+  transition: background 0.15s, color 0.15s;
+}
+.spoiler-toggle-btn:hover { background: var(--accent-peach, #fff0ea); color: var(--primary, #e07b54); }
+.spoiler-toggle-btn.spoiler-open { color: var(--primary, #e07b54); border-color: var(--primary, #e07b54); }
+</style>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// ── Subscribe to book ─────────────────────────────────────────────────────
+var _subscribed = {{ 'true' if subscribed else 'false' }};
+var _bookId = {{ book.id }};
+
+function updateSubscribeBtn() {
+  var btn = document.getElementById('subscribe-btn');
+  if (!btn) return;
+  btn.textContent = _subscribed ? '🔔 Отслеживается' : '🔕 Отслеживать обновления';
+  btn.style.borderColor = _subscribed ? 'var(--primary)' : '';
+  btn.style.color = _subscribed ? 'var(--primary)' : '';
+}
+
+async function toggleSubscribe() {
+  var btn = document.getElementById('subscribe-btn');
+  if (btn) btn.disabled = true;
+  try {
+    var r = await fetch('/api/books/' + _bookId + '/subscribe', {method: 'POST'});
+    if (r.ok) {
+      var d = await r.json();
+      _subscribed = d.subscribed;
+      updateSubscribeBtn();
+      showToast && showToast(_subscribed ? 'Вы подписаны на обновления' : 'Подписка отменена', 'success');
+    }
+  } catch(e) { showToast && showToast('Ошибка', 'error'); }
+  if (btn) btn.disabled = false;
+}
+
+// Init subscribe button
+if (document.getElementById('subscribe-btn')) updateSubscribeBtn();
+
+function toggleSpoilerTags(btn) {
+  var wrap = document.getElementById('spoiler-tags-wrap');
+  if (!wrap) return;
+  var open = wrap.style.display !== 'none';
+  wrap.style.display = open ? 'none' : 'flex';
+  btn.textContent = open ? 'Спойлеры (' + wrap.children.length + ')' : 'Скрыть спойлеры';
+}
+function toggleSpoilerWarnings(btn) {
+  var wrap = document.getElementById('spoiler-warnings-wrap');
+  if (!wrap) return;
+  var open = wrap.style.display !== 'none';
+  wrap.style.display = open ? 'none' : 'flex';
+  btn.textContent = open ? 'Спойлеры (' + wrap.children.length + ')' : 'Скрыть';
+}
+
+// Star rating
+var stars = document.querySelectorAll('#star-rating [data-star]');
+var ratingInput = document.getElementById('rating-input');
+if (stars.length) {
+  stars.forEach(function(s) {
+    s.addEventListener('mouseover', function() {
+      var val = +s.dataset.star;
+      stars.forEach(function(st, i) { st.textContent = i < val ? '★' : '☆'; st.style.color = i < val ? '#f59e0b' : '#d1d5db'; });
+    });
+    s.addEventListener('click', function() {
+      ratingInput.value = s.dataset.star;
+      stars.forEach(function(st, i) { st.textContent = i < +s.dataset.star ? '★' : '☆'; st.style.color = i < +s.dataset.star ? '#f59e0b' : '#d1d5db'; });
+    });
+  });
+  document.getElementById('star-rating')?.addEventListener('mouseleave', function() {
+    var val = +ratingInput.value;
+    stars.forEach(function(st, i) { st.textContent = i < val ? '★' : '☆'; st.style.color = i < val ? '#f59e0b' : '#d1d5db'; });
+  });
+}
+
+function toggleReviewSpoiler(btn) {
+  var textDiv = btn.nextElementSibling;
+  var isHidden = textDiv.style.display === 'none';
+  textDiv.style.display = isHidden ? 'block' : 'none';
+  btn.textContent = isHidden ? '▲ Скрыть спойлер' : '⚠ Содержит спойлеры — нажмите, чтобы прочитать';
+  btn.classList.toggle('spoiler-open', isHidden);
+}
+
+document.getElementById('submit-review')?.addEventListener('click', async function() {
+  var rating = parseFloat(document.getElementById('rating-input').value);
+  if (!rating) { showToast('Выберите оценку', 'warning'); return; }
+  var text = document.getElementById('review-text')?.value || '';
+  var bookId = this.dataset.bookId;
+  try {
+    var resp = await fetch('/api/books/' + bookId + '/reviews', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({rating: rating, text: text || null, is_spoiler: document.getElementById('review-spoiler')?.checked || false})
+    });
+    if (!resp.ok) { var e = await resp.json(); throw new Error(e.detail || 'Ошибка'); }
+    showToast('Отзыв опубликован!', 'success');
+    setTimeout(function() { location.reload(); }, 1200);
+  } catch(e) { showToast(e.message, 'error'); }
+});
+</script>
+{% endblock %}

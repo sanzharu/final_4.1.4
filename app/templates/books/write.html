@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}{% if book %}Редактировать — {% endif %}Написать — Literary Haven{% endblock %}
+{% block content %}
+<div class="page-wrap"><div class="page-inner">
+  <div class="section-header">
+    <div>
+      <h1 class="section-title">{% if book %}Редактировать <span>произведение</span>{% else %}Новое <span>произведение</span>{% endif %}</h1>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-ghost btn-sm" id="save-draft"> Сохранить черновик</button>
+      {% if book and not book.is_published %}
+      <button class="btn btn-secondary btn-sm" id="publish-btn" data-book-slug="{{ book.slug }}"> Опубликовать</button>
+      {% endif %}
+    </div>
+  </div>
+  <form id="write-form" method="post" action="{% if book %}/write/{{ book.slug }}{% else %}/write{% endif %}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}"/>
+    <div class="write-layout">
+      <div class="write-main">
+        <div class="form-group">
+          <input type="text" name="title" class="form-input" style="font-family:var(--font-serif);font-size:1.3rem;font-weight:600"
+                 placeholder="Название произведения..." value="{{ book.title if book else '' }}" required/>
+        </div>
+        {% if show_chapter_editor %}
+        <div class="editor-wrap">
+          <div class="editor-toolbar" role="toolbar">
+            <button type="button" class="editor-tool" data-cmd="bold" title="Жирный"><b>B</b></button>
+            <button type="button" class="editor-tool" data-cmd="italic" title="Курсив"><i>I</i></button>
+            <button type="button" class="editor-tool" data-cmd="underline" title="Подчёркнутый"><u>U</u></button>
+            <span class="editor-tool-sep"></span>
+            <button type="button" class="editor-tool" data-cmd="insertUnorderedList" title="Список">≡</button>
+            <button type="button" class="editor-tool" data-cmd="formatBlock" data-val="h2" title="Заголовок">H2</button>
+            <button type="button" class="editor-tool" data-cmd="formatBlock" data-val="blockquote" title="Цитата"></button>
+          </div>
+          <div id="editor" class="editor-area" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Текст главы" spellcheck="true">{{ chapter_content if chapter_content else '' }}</div>
+          <input type="hidden" name="content" id="editor-content"/>
+          <div class="editor-meta-bar">
+            <span class="word-count" id="word-count" aria-live="polite">0 слов</span>
+            <div style="display:flex;gap:10px">
+              <input type="text" name="chapter_title" placeholder="Название главы" class="form-input" style="max-width:240px;padding:6px 12px" value="{{ chapter.title if chapter else '' }}"/>
+              <input type="number" name="chapter_number" placeholder="№ главы" class="form-input" style="max-width:100px;padding:6px 12px" value="{{ chapter.number if chapter else '' }}"/>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+      <div class="write-sidebar">
+        <div class="widget">
+          <div class="widget-title"> Параметры</div>
+          <div class="form-group">
+            <label class="form-label">Жанр</label>
+            <select name="genre" class="form-select" required>
+              {% for g in genres %}
+              <option value="{{ g.id }}" {% if book and book.genre.value == g.id %}selected{% endif %}>{{ g.icon }} {{ g.label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Статус</label>
+            <select name="status" class="form-select">
+              <option value="draft" {% if not book or book.status.value == 'draft' %}selected{% endif %}>Черновик</option>
+              <option value="ongoing" {% if book and book.status.value == 'ongoing' %}selected{% endif %}>В процессе</option>
+              <option value="completed" {% if book and book.status.value == 'completed' %}selected{% endif %}>Завершена</option>
+              <option value="hiatus" {% if book and book.status.value == 'hiatus' %}selected{% endif %}>Пауза</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Обложка (эмодзи)</label>
+            <input type="text" name="cover_emoji" class="form-input" placeholder="" maxlength="4" style="font-size:1.5rem;text-align:center" value="{{ book.cover_emoji if book else '' }}"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Описание</label>
+            <textarea name="description" class="form-input" rows="5" placeholder="О чём ваша история? (до 1000 символов)" maxlength="1000" oninput="var c=document.getElementById('desc-cnt-w');if(c)c.textContent=this.value.length+'/1000'">{{ book.description if book else '' }}</textarea>
+            <div style="font-family:sans-serif;font-size:0.72rem;color:#9b9b9b;text-align:right;margin-top:0.2rem;" id="desc-cnt-w">{{ (book.description if book else '')|length }}/1000</div>
+          </div>
+          <div class="form-group" style="display:flex;align-items:center;gap:10px">
+            <input type="checkbox" name="is_adult" id="is_adult" {% if book and book.is_adult %}checked{% endif %} style="width:18px;height:18px"/>
+            <label for="is_adult" class="form-label" style="margin:0">Контент 18+</label>
+          </div>
+          <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center">
+            {% if book %}Сохранить изменения{% else %}Создать книгу{% endif %}
+          </button>
+        </div>
+      </div>
+    </div>
+  </form>
+</div></div>
+{% endblock %}
+{% block scripts %}
+<script>
+// Rich text editor
+const editor = document.getElementById('editor');
+const wordCount = document.getElementById('word-count');
+const hiddenContent = document.getElementById('editor-content');
+
+document.querySelectorAll('.editor-tool').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const cmd = btn.dataset.cmd;
+    const val = btn.dataset.val || null;
+    document.execCommand(cmd, false, val);
+    editor.focus();
+  });
+});
+
+editor?.addEventListener('input', () => {
+  const text = editor.innerText.trim();
+  const words = text ? text.split(/\s+/).length : 0;
+  wordCount.textContent = `${words} слов`;
+});
+
+document.getElementById('write-form')?.addEventListener('submit', () => {
+  if (hiddenContent) hiddenContent.value = editor?.innerHTML || '';
+});
+
+document.getElementById('publish-btn')?.addEventListener('click', async (e) => {
+  const slug = e.target.dataset.bookSlug;
+  const res = await fetch(`/api/v1/books/${slug}/publish`, {
+    method: 'POST', headers: {'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content}
+  });
+  if (res.ok) { showToast('Опубликовано! ', 'success'); setTimeout(() => window.location = `/books/${slug}`, 1500); }
+  else { const d = await res.json(); showToast(d.detail || 'Ошибка', 'error'); }
+});
+</script>
+{% endblock %}

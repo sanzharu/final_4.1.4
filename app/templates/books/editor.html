@@ -1,0 +1,446 @@
+{% extends "base.html" %}
+{% block title %}{% if book %}Редактировать — {{ book.title }}{% else %}Новая книга{% endif %} — {{ site_name }}{% endblock %}
+
+{% block content %}
+<div class="container" style="padding-top:calc(var(--navbar-h) + 2rem);padding-bottom:4rem;max-width:1100px;">
+
+  <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:2rem;">
+    {% if book %}<a href="/books/{{ book.slug }}" style="display:flex;align-items:center;color:var(--text-secondary);padding:0.4rem;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m15 18-6-6 6-6"/></svg></a>{% endif %}
+    <h1 style="font-family:var(--font-serif);font-size:1.8rem;font-weight:700;">{% if book %}Редактировать: {{ book.title }}{% else %}Новая книга{% endif %}</h1>
+  </div>
+
+  {% if book %}
+  {# ── EDIT MODE ── #}
+  {# Single form wrapping EVERYTHING so warnings/tags submit #}
+  <form method="post" action="/write/{{ book.id }}" id="edit-form">
+    <div style="display:grid;grid-template-columns:1fr 320px;gap:1.5rem;align-items:start;">
+
+      <!-- LEFT: info + tags + warnings -->
+      <div>
+        <div style="background:var(--bg-surface);border-radius:var(--radius-xl);border:1px solid var(--border-light);padding:1.5rem;margin-bottom:1rem;">
+          <div class="form-group">
+            <label class="form-label">Название *</label>
+            <input type="text" name="title" class="form-control" required maxlength="300" value="{{ book.title }}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Описание</label>
+            <textarea name="description" class="form-control" rows="4" maxlength="1000" oninput="var c=document.getElementById('desc-cnt-edit');if(c)c.textContent=this.value.length+'/1000'">{{ book.description or '' }}</textarea>
+          <div style="font-family:var(--font-sans);font-size:0.72rem;color:var(--text-muted);text-align:right;margin-top:0.2rem;" id="desc-cnt-edit">{{ (book.description or '')|length }}/1000</div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;">
+            <div class="form-group">
+              <label class="form-label">Жанр</label>
+              <select name="genre" class="form-control">
+                {% for g in genres %}<option value="{{ g.slug }}" {% if book.genre and book.genre.value == g.slug %}selected{% endif %}>{{ g.name }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Направление</label>
+              <select name="direction" class="form-control">
+                {% for val, lbl in [('gen','Джен'),('het','Гет')] %}
+                  <option value="{{ val }}" {% if book.direction == val %}selected{% endif %}>{{ lbl }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Статус</label>
+              <select name="status" class="form-control">
+                {% for val, lbl in [('draft','Черновик'),('ongoing','В процессе'),('completed','Завершена'),('hiatus','Пауза')] %}
+                  <option value="{{ val }}" {% if book.status.value == val %}selected{% endif %}>{{ lbl }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+          <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-family:var(--font-sans);font-size:0.88rem;margin-top:0.25rem;">
+            <input type="checkbox" name="is_adult" {% if book.is_adult %}checked{% endif %} style="accent-color:var(--primary);">
+            Контент 18+
+          </label>
+        </div>
+
+        <!-- Tags -->
+        <div style="background:var(--bg-surface);border-radius:var(--radius-xl);border:1px solid var(--border-light);padding:1.5rem;margin-bottom:1rem;">
+          <div style="font-family:var(--font-sans);font-size:0.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);margin-bottom:0.85rem;">Теги</div>
+          <div id="selected-tags" style="display:flex;flex-wrap:wrap;gap:0.35rem;min-height:28px;margin-bottom:0.75rem;">
+            {% for bt in book.tags %}
+              <span class="selected-tag-pill" data-tag="{{ bt.tag.name }}" style="display:inline-flex;align-items:center;gap:0.3rem;padding:0.2rem 0.6rem;border-radius:20px;background:var(--accent-peach);color:#8b4513;font-family:var(--font-sans);font-size:0.8rem;">
+                {{ bt.tag.name }}
+                <button type="button" onclick="removeTag('{{ bt.tag.name | replace("'", "\\'") }}')" style="background:none;border:none;cursor:pointer;padding:0;color:inherit;opacity:0.7;line-height:1;font-size:1rem;">×</button>
+              </span>
+            {% endfor %}
+          </div>
+          <div style="display:flex;gap:0.5rem;margin-bottom:0.6rem;">
+            <input type="text" id="tag-input" list="tag-suggestions-edit" placeholder="Введите тег и нажмите Enter..."
+                   class="form-control" style="flex:1;font-size:0.88rem;" onkeydown="handleTagInput(event)" oninput="handleTagAutocomplete(this)">
+            <button type="button" onclick="addTagFromInput()" class="btn btn-outline btn-sm">Добавить</button>
+          </div>
+          <datalist id="tag-suggestions-edit">
+            <option value="Фэнтези">
+            <option value="Романтика">
+            <option value="Приключения">
+            <option value="Магия">
+            <option value="Драма">
+            <option value="Детектив">
+            <option value="Ужасы">
+            <option value="Комедия">
+            <option value="Научная фантастика">
+            <option value="Постапокалипсис">
+            <option value="Антиутопия">
+            <option value="Исторический">
+            <option value="Мистика">
+            <option value="Психология">
+            <option value="Боевик">
+            <option value="Школа">
+            <option value="Попаданцы">
+            <option value="Дружба">
+            <option value="Семья">
+            <option value="Любовный треугольник">
+            <option value="Ангст">
+            <option value="AU">
+            <option value="Классика">
+            <option value="Реализм">
+            <option value="Трагедия">
+            <option value="Юмор">
+            <option value="Символизм">
+            <option value="Природа">
+            <option value="Война">
+            <option value="Путешествие">
+            <option value="Выживание">
+            <option value="Любовь">
+            <option value="Философия">
+            <option value="Средневековье">
+            <option value="Россия XIX век">
+            <option value="Исторический роман">
+            <option value="Повседневность">
+            <option value="Сильная героиня">
+            <option value="Месть">
+            <option value="Тайна">
+            <option value="Пародия">
+            <option value="Флафф">
+            <option value="Краткий рассказ">
+          </datalist>
+          <!-- Quick tags -->
+          <div style="display:flex;flex-wrap:wrap;gap:0.3rem;margin-bottom:0.5rem;">
+            {% for t in ['Фэнтези','Романтика','Магия','Школа','Попаданцы','Ангст','AU','Дружба','Классика','Война'] %}
+            <button type="button" onclick="addTag('{{ t }}')" style="font-family:var(--font-sans);font-size:0.74rem;padding:0.15rem 0.5rem;border-radius:20px;border:1px solid var(--border-mid);background:transparent;color:var(--text-secondary);cursor:pointer;">{{ t }}</button>
+            {% endfor %}
+          </div>
+          <div style="font-family:var(--font-sans);font-size:0.75rem;color:var(--text-muted);" id="tag-count">0/10 тегов</div>
+          <input type="hidden" id="tags-hidden" name="tags_json" value="{{ book.tags | map(attribute='tag') | map(attribute='name') | list | tojson }}">
+        </div>
+
+        <!-- Content warnings (inside the form) -->
+        <div style="background:var(--bg-surface);border-radius:var(--radius-xl);border:1px solid var(--border-light);padding:1.5rem;margin-bottom:1rem;">
+          <div style="font-family:var(--font-sans);font-size:0.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);margin-bottom:1rem;">Метки и предупреждения</div>
+          {% set cw = book.content_warnings | fromjson if book.content_warnings else [] %}
+
+          <div style="font-family:var(--font-sans);font-size:0.72rem;font-weight:600;color:var(--text-muted);letter-spacing:.06em;margin-bottom:0.4rem;">ПРЕДУПРЕЖДЕНИЯ</div>
+          <div style="display:flex;flex-wrap:wrap;gap:0.35rem;margin-bottom:0.85rem;">
+            {% for key, label in [
+              ('violence','Насилие'),('cruel_scenes','Жестокие сцены'),('language','Нецензурная лексика'),
+              ('alcohol','Алкоголь'),('drugs','Наркотики'),('smoking','Курение'),
+              ('self_harm','Членовредительство'),('suicidal','Суицидальные мысли'),
+              ('psychological_abuse','Психологическое насилие'),('sexual_abuse','Сексуальное насилие'),
+              ('toxic_relations','Токсичные отношения'),('mental_disorders','Психические расстройства')
+            ] %}
+            <label style="display:flex;align-items:center;gap:0.3rem;padding:0.25rem 0.6rem;border-radius:20px;border:1px solid var(--border-light);cursor:pointer;font-family:var(--font-sans);font-size:0.78rem;user-select:none;">
+              <input type="checkbox" name="warning_{{ key }}" style="accent-color:var(--primary);margin:0;width:12px;height:12px;">{{ label }}
+            </label>
+            {% endfor %}
+          </div>
+          <div style="font-family:var(--font-sans);font-size:0.72rem;font-weight:600;color:#856404;letter-spacing:.06em;margin-bottom:0.4rem;">СПОЙЛЕРЫ</div>
+          <div style="display:flex;flex-wrap:wrap;gap:0.35rem;margin-bottom:0.85rem;">
+            {% for key, label in [
+              ('main_death','Смерть главных персонажей'),('minor_death','Смерть второстепенного персонажа'),
+              ('bad_ending','Плохой финал'),('open_ending','Открытый финал'),('happy_ending','Хэппи-энд'),
+              ('tragedy','Трагедия'),('betrayal','Предательство'),('unexpected_turn','Неожиданный поворот'),
+              ('love_triangle','Любовный треугольник'),('noncon','Нонкон'),('unhappy_ending','Несчастливый финал')
+            ] %}
+            <label style="display:flex;align-items:center;gap:0.3rem;padding:0.25rem 0.6rem;border-radius:20px;border:1px solid #FFD54F;cursor:pointer;background:#FFFDE7;font-family:var(--font-sans);font-size:0.78rem;user-select:none;">
+              <input type="checkbox" name="warning_{{ key }}" style="accent-color:var(--primary);margin:0;width:12px;height:12px;">{{ label }}
+            </label>
+            {% endfor %}
+          </div>
+          <div style="font-family:var(--font-sans);font-size:0.72rem;font-weight:600;color:var(--text-muted);letter-spacing:.06em;margin-bottom:0.4rem;">ДРУГИЕ МЕТКИ</div>
+          <div style="display:flex;flex-wrap:wrap;gap:0.35rem;margin-bottom:0.85rem;">
+            {% for key, label in [
+              ('magic','Магия'),('demons','Демоны'),('mythology','Мифология'),('spirits','Духи'),
+              ('rituals','Ритуалы'),('love_hate','Любовь / Ненависть'),('friendship','Дружба'),
+              ('angst','Ангст'),('fluff','Флафф'),('drama','Драма'),('humor','Юмор'),
+              ('jealousy','Ревность'),('reunion','Воссоединение'),('secret_rel','Отношения в тайне'),
+              ('family','Семья'),('loneliness','Одиночество'),('war','Война'),('politics','Политика'),
+              ('mystery','Тайны'),('investigation','Расследование'),('survival','Выживание'),
+              ('school','Школа / академия'),('kingdom','Королевство')
+            ] %}
+            <label style="display:flex;align-items:center;gap:0.3rem;padding:0.25rem 0.6rem;border-radius:20px;border:1px solid var(--border-light);cursor:pointer;font-family:var(--font-sans);font-size:0.78rem;user-select:none;">
+              <input type="checkbox" name="warning_{{ key }}" style="accent-color:var(--primary);margin:0;width:12px;height:12px;">{{ label }}
+            </label>
+            {% endfor %}
+          </div>
+          <div style="font-family:var(--font-sans);font-size:0.72rem;font-weight:600;color:#1565C0;letter-spacing:.06em;margin-bottom:0.4rem;">ТРОПЫ</div>
+          <div style="display:flex;flex-wrap:wrap;gap:0.35rem;">
+            {% for key, label in [
+              ('mary_sue','Мэри Сью'),('soulmates','Родственные души'),('popadantsy','Попаданцы'),
+              ('slowburn','Медленное развитие (Слоуберн)'),('enemies_to_lovers','От врагов к возлюбленным'),
+              ('friends_to_lovers','От друзей к возлюбленным'),('fake_relationship','Фиктивные отношения'),
+              ('second_chance','Второй шанс'),('found_family','Обретённая семья'),
+              ('forbidden_love','Запретная любовь'),('opposites_attract','Противоположности притягиваются'),
+              ('amnesia','Потеря памяти'),('reincarnation','Перерождение')
+            ] %}
+            <label style="display:flex;align-items:center;gap:0.3rem;padding:0.25rem 0.6rem;border-radius:20px;border:1px solid #BBDEFB;cursor:pointer;background:#E3F2FD;font-family:var(--font-sans);font-size:0.78rem;user-select:none;">
+              <input type="checkbox" name="warning_{{ key }}" style="accent-color:var(--primary);margin:0;width:12px;height:12px;">{{ label }}
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="width:100%;">Сохранить изменения</button>
+        <a href="/books/{{ book.slug }}" class="btn btn-ghost" style="width:100%;justify-content:center;margin-top:0.5rem;">Отмена</a>
+      </div>
+
+      <!-- RIGHT: Chapters -->
+      <div>
+        <!-- Chapters box -->
+        <div style="background:var(--bg-surface);border-radius:var(--radius-xl);border:1px solid var(--border-light);padding:1.25rem;margin-bottom:1rem;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
+            <div style="font-family:var(--font-sans);font-size:0.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);">Главы</div>
+            <a href="/write/{{ book.id }}/chapters/new" class="btn btn-primary btn-sm">+ Добавить</a>
+          </div>
+
+          {% if chapters %}
+            <div style="display:flex;flex-direction:column;gap:0.4rem;">
+              {% for ch in chapters %}
+              <div style="display:flex;align-items:center;gap:0.5rem;padding:0.6rem 0.75rem;border-radius:var(--radius-md);border:1px solid {% if ch.is_draft_hidden %}#fecaca{% else %}var(--border-light){% endif %};background:{% if ch.is_draft_hidden %}#fef2f2{% else %}transparent{% endif %};">
+                <span style="font-family:var(--font-sans);font-size:0.76rem;color:var(--text-muted);min-width:16px;text-align:right;flex-shrink:0;">{{ ch.number }}.</span>
+                <a href="/write/{{ book.id }}/chapters/{{ ch.id }}" style="flex:1;font-family:var(--font-sans);font-size:0.85rem;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ ch.title }}">{{ ch.title }}</a>
+                <!-- Eye icon button = hide/show -->
+                <button type="button" onclick="toggleChapterVisibility({{ ch.id }}, this)"
+                   title="{{ 'Показать' if ch.is_draft_hidden else 'Скрыть' }}"
+                   style="flex-shrink:0;width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:50%;border:1px solid {% if ch.is_draft_hidden %}#fca5a5{% else %}var(--border-light){% endif %};background:transparent;cursor:pointer;color:{% if ch.is_draft_hidden %}#dc2626{% else %}var(--text-muted){% endif %};">
+                  {% if ch.is_draft_hidden %}
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                  {% else %}
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                  {% endif %}
+                </button>
+                <!-- Trash icon button = delete -->
+                <button type="button" onclick="deleteChapter({{ ch.id }}, '{{ ch.title | replace("'","") | replace('"','') }}')"
+                   title="Удалить главу"
+                   style="flex-shrink:0;width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:50%;border:1px solid #fca5a5;background:transparent;cursor:pointer;color:#dc2626;">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                </button>
+              </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div style="text-align:center;padding:2rem 0;color:var(--text-muted);">
+              <p style="font-family:var(--font-sans);font-size:0.88rem;margin-bottom:1rem;">Глав пока нет</p>
+              <a href="/write/{{ book.id }}/chapters/new" class="btn btn-primary btn-sm">+ Добавить главу</a>
+            </div>
+          {% endif %}
+        </div>
+
+        <!-- Stats box -->
+        <div style="background:var(--bg-surface);border-radius:var(--radius-xl);border:1px solid var(--border-light);padding:1.25rem;">
+          <div style="font-family:var(--font-sans);font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);margin-bottom:0.85rem;">Статистика</div>
+          {% for label, val in [('Просмотры', book.views_count | fmt_number), ('Закладки', book.bookmarks_count | fmt_number), ('Рейтинг', book.rating), ('Слов', (book.words_count | fmt_words))] %}
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:0.3rem 0;border-bottom:1px solid var(--border-light);font-family:var(--font-sans);font-size:0.85rem;">
+            <span style="color:var(--text-muted);">{{ label }}</span>
+            <span style="font-weight:600;">{{ val }}</span>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </form>
+
+  {% else %}
+  {# ── CREATE MODE ── #}
+  <form method="post" action="/write/new" id="create-form">
+    <div style="display:grid;grid-template-columns:1fr 300px;gap:1.5rem;align-items:start;">
+      <!-- LEFT: basic info + tags + warnings -->
+      <div>
+        <div style="background:var(--bg-surface);border-radius:var(--radius-xl);border:1px solid var(--border-light);padding:1.5rem;margin-bottom:1rem;">
+          <div class="form-group">
+            <label class="form-label">Название *</label>
+            <input type="text" name="title" class="form-control" required maxlength="300" placeholder="Введите название книги">
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Описание</label>
+            <textarea name="description" class="form-control" rows="6" maxlength="1000"
+              placeholder="Краткое описание вашей истории (до 1000 символов)..."
+              oninput="var c=document.getElementById('desc-cnt-new');if(c)c.textContent=this.value.length+'/1000'"></textarea>
+            <div style="font-family:var(--font-sans);font-size:0.72rem;color:var(--text-muted);text-align:right;margin-top:0.2rem;" id="desc-cnt-new">0/1000</div>
+          </div>
+        </div>
+
+        <!-- Tags (create) -->
+        <div style="background:var(--bg-surface);border-radius:var(--radius-xl);border:1px solid var(--border-light);padding:1.5rem;margin-bottom:1rem;">
+          <div style="font-family:var(--font-sans);font-size:0.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);margin-bottom:0.85rem;">Теги</div>
+          <div id="selected-tags" style="display:flex;flex-wrap:wrap;gap:0.35rem;min-height:28px;margin-bottom:0.75rem;"></div>
+          <div style="display:flex;gap:0.5rem;margin-bottom:0.6rem;">
+            <input type="text" id="tag-input" list="tag-suggestions" placeholder="Введите тег..." class="form-control" style="flex:1;font-size:0.88rem;" onkeydown="handleTagInput(event)">
+            <button type="button" onclick="addTagFromInput()" class="btn btn-outline btn-sm">+</button>
+          </div>
+          <datalist id="tag-suggestions">
+            {% for t in ['Фэнтези','Романтика','Приключения','Магия','Драма','Детектив','Ужасы','Комедия','Научная фантастика','Постапокалипсис','Антиутопия','Исторический','Мистика','Психология','Боевик','Школа','Попаданцы','Дружба','Семья','Любовный треугольник','Ангст','AU','Классика','Реализм','Трагедия','Юмор','Символизм','Природа','Война','Путешествие','Выживание','Любовь','Философия','Средневековье','Россия XIX век','Флафф','Краткий рассказ'] %}
+            <option value="{{ t }}">{% endfor %}
+          </datalist>
+          <div style="display:flex;flex-wrap:wrap;gap:0.3rem;margin-bottom:0.5rem;">
+            {% for t in ['Фэнтези','Романтика','Магия','Школа','Попаданцы','Ангст','AU','Дружба','Детектив','Мистика','Классика','Война'] %}
+            <button type="button" onclick="addTag('{{ t }}')" style="font-family:var(--font-sans);font-size:0.74rem;padding:0.15rem 0.5rem;border-radius:20px;border:1px solid var(--border-mid);background:transparent;color:var(--text-secondary);cursor:pointer;">{{ t }}</button>
+            {% endfor %}
+          </div>
+          <div style="font-family:var(--font-sans);font-size:0.75rem;color:var(--text-muted);" id="tag-count">0/10 тегов</div>
+          <input type="hidden" id="tags-hidden" name="tags_json" value="[]">
+        </div>
+
+        <!-- Warnings (create) -->
+        <div style="background:var(--bg-surface);border-radius:var(--radius-xl);border:1px solid var(--border-light);padding:1.5rem;">
+          <div style="font-family:var(--font-sans);font-size:0.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);margin-bottom:1rem;">Метки и предупреждения</div>
+          <div style="font-family:var(--font-sans);font-size:0.72rem;font-weight:600;color:var(--text-muted);letter-spacing:.06em;margin-bottom:0.4rem;">ПРЕДУПРЕЖДЕНИЯ</div>
+          <div style="display:flex;flex-wrap:wrap;gap:0.35rem;margin-bottom:0.85rem;">
+            {% for key, label in [('violence','Насилие'),('cruel_scenes','Жестокие сцены'),('language','Нецензурная лексика'),('alcohol','Алкоголь'),('drugs','Наркотики'),('smoking','Курение'),('self_harm','Членовредительство'),('suicidal','Суицидальные мысли'),('psychological_abuse','Психологическое насилие'),('sexual_abuse','Сексуальное насилие'),('toxic_relations','Токсичные отношения'),('mental_disorders','Психические расстройства')] %}
+            <label style="display:flex;align-items:center;gap:0.3rem;padding:0.25rem 0.6rem;border-radius:20px;border:1px solid var(--border-light);cursor:pointer;font-family:var(--font-sans);font-size:0.78rem;user-select:none;">
+              <input type="checkbox" name="warning_{{ key }}" style="accent-color:var(--primary);margin:0;width:12px;height:12px;">{{ label }}
+            </label>
+            {% endfor %}
+          </div>
+          <div style="font-family:var(--font-sans);font-size:0.72rem;font-weight:600;color:#856404;letter-spacing:.06em;margin-bottom:0.4rem;">СПОЙЛЕРЫ</div>
+          <div style="display:flex;flex-wrap:wrap;gap:0.35rem;margin-bottom:0.85rem;">
+            {% for key, label in [('main_death','Смерть главных персонажей'),('minor_death','Смерть второстепенного персонажа'),('bad_ending','Плохой финал'),('open_ending','Открытый финал'),('happy_ending','Хэппи-энд'),('tragedy','Трагедия'),('betrayal','Предательство'),('unexpected_turn','Неожиданный поворот'),('love_triangle','Любовный треугольник'),('noncon','Нонкон'),('unhappy_ending','Несчастливый финал')] %}
+            <label style="display:flex;align-items:center;gap:0.3rem;padding:0.25rem 0.6rem;border-radius:20px;border:1px solid #FFD54F;cursor:pointer;background:#FFFDE7;font-family:var(--font-sans);font-size:0.78rem;user-select:none;">
+              <input type="checkbox" name="warning_{{ key }}" style="accent-color:var(--primary);margin:0;width:12px;height:12px;">{{ label }}
+            </label>
+            {% endfor %}
+          </div>
+          <div style="font-family:var(--font-sans);font-size:0.72rem;font-weight:600;color:var(--text-muted);letter-spacing:.06em;margin-bottom:0.4rem;">ДРУГИЕ МЕТКИ</div>
+          <div style="display:flex;flex-wrap:wrap;gap:0.35rem;margin-bottom:0.85rem;">
+            {% for key, label in [('magic','Магия'),('demons','Демоны'),('mythology','Мифология'),('spirits','Духи'),('rituals','Ритуалы'),('love_hate','Любовь / Ненависть'),('friendship','Дружба'),('angst','Ангст'),('fluff','Флафф'),('drama','Драма'),('humor','Юмор'),('jealousy','Ревность'),('reunion','Воссоединение'),('secret_rel','Отношения в тайне'),('family','Семья'),('loneliness','Одиночество'),('war','Война'),('politics','Политика'),('mystery','Тайны'),('investigation','Расследование'),('survival','Выживание'),('school','Школа / академия'),('kingdom','Королевство')] %}
+            <label style="display:flex;align-items:center;gap:0.3rem;padding:0.25rem 0.6rem;border-radius:20px;border:1px solid var(--border-light);cursor:pointer;font-family:var(--font-sans);font-size:0.78rem;user-select:none;">
+              <input type="checkbox" name="warning_{{ key }}" style="accent-color:var(--primary);margin:0;width:12px;height:12px;">{{ label }}
+            </label>
+            {% endfor %}
+          </div>
+          <div style="font-family:var(--font-sans);font-size:0.72rem;font-weight:600;color:#1565C0;letter-spacing:.06em;margin-bottom:0.4rem;">ТРОПЫ</div>
+          <div style="display:flex;flex-wrap:wrap;gap:0.35rem;">
+            {% for key, label in [('mary_sue','Мэри Сью'),('soulmates','Родственные души'),('popadantsy','Попаданцы'),('slowburn','Медленное развитие (Слоуберн)'),('enemies_to_lovers','От врагов к возлюбленным'),('friends_to_lovers','От друзей к возлюбленным'),('fake_relationship','Фиктивные отношения'),('second_chance','Второй шанс'),('found_family','Обретённая семья'),('forbidden_love','Запретная любовь'),('opposites_attract','Противоположности притягиваются'),('amnesia','Потеря памяти'),('reincarnation','Перерождение')] %}
+            <label style="display:flex;align-items:center;gap:0.3rem;padding:0.25rem 0.6rem;border-radius:20px;border:1px solid #BBDEFB;cursor:pointer;background:#E3F2FD;font-family:var(--font-sans);font-size:0.78rem;user-select:none;">
+              <input type="checkbox" name="warning_{{ key }}" style="accent-color:var(--primary);margin:0;width:12px;height:12px;">{{ label }}
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT sidebar: submit + metadata -->
+      <div>
+        <button type="submit" style="width:100%;padding:0.9rem;border-radius:var(--radius-full);background:linear-gradient(135deg,var(--primary),var(--primary-light));color:white;border:none;font-family:var(--font-sans);font-size:0.95rem;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem;margin-bottom:1rem;box-shadow:0 4px 12px rgba(139,115,85,0.3);">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v14a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          Создать книгу
+        </button>
+        <div style="background:var(--bg-surface);border-radius:var(--radius-xl);border:1px solid var(--border-light);padding:1.25rem;margin-bottom:1rem;">
+          <div style="font-family:var(--font-sans);font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);margin-bottom:0.85rem;">Информация</div>
+          <div class="form-group">
+            <label style="display:block;font-family:var(--font-sans);font-size:0.78rem;color:var(--text-muted);margin-bottom:0.3rem;">Жанр</label>
+            <select name="genre" class="form-control" style="font-size:0.88rem;">
+              {% for g in genres %}<option value="{{ g.slug }}">{{ g.name }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label style="display:block;font-family:var(--font-sans);font-size:0.78rem;color:var(--text-muted);margin-bottom:0.3rem;">Направление</label>
+            <select name="direction" class="form-control" style="font-size:0.88rem;">
+              <option value="gen">Джен</option>
+              <option value="het">Гет</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-family:var(--font-sans);font-size:0.85rem;">
+              <input type="checkbox" name="is_adult" style="accent-color:var(--primary);">
+              Контент 18+
+            </label>
+          </div>
+        </div>
+        <a href="/" class="btn btn-ghost" style="width:100%;justify-content:center;">Отмена</a>
+      </div>
+    </div>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}
+
+
+{% block extra_scripts %}
+<script>
+// ── Tag system ────────────────────────────────────────────────────────────────
+var _tags = [];
+var MAX_TAGS = 10;
+
+// Init from existing tags
+document.querySelectorAll('.selected-tag-pill').forEach(function(el) {
+  var t = el.dataset.tag;
+  if (t && !_tags.includes(t)) _tags.push(t);
+});
+updateTagsUI();
+
+function addTag(name) {
+  name = (name || '').trim();
+  if (!name || _tags.includes(name) || _tags.length >= MAX_TAGS) return;
+  _tags.push(name);
+  updateTagsUI();
+}
+
+function removeTag(name) {
+  _tags = _tags.filter(function(t) { return t !== name; });
+  updateTagsUI();
+}
+
+function updateTagsUI() {
+  var container = document.getElementById('selected-tags');
+  if (container) {
+    container.innerHTML = _tags.map(function(t) {
+      return '<span style="display:inline-flex;align-items:center;gap:0.3rem;padding:0.2rem 0.6rem;border-radius:20px;background:var(--accent-peach);color:#8b4513;font-family:var(--font-sans);font-size:0.8rem;">' +
+        escHtml(t) +
+        '<button type="button" onclick="removeTag(\'' + t.replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\')" style="background:none;border:none;cursor:pointer;padding:0;color:inherit;opacity:0.7;line-height:1;font-size:1.1rem;">×</button>' +
+        '</span>';
+    }).join('');
+  }
+  var h = document.getElementById('tags-hidden');
+  if (h) h.value = JSON.stringify(_tags);
+  var counter = document.getElementById('tag-count');
+  if (counter) counter.textContent = _tags.length + '/10 тегов';
+}
+
+function handleTagInput(e) {
+  if (e.key === 'Enter') { e.preventDefault(); addTagFromInput(); }
+  if (e.key === ',') { e.preventDefault(); addTagFromInput(); }
+}
+
+function addTagFromInput() {
+  var inp = document.getElementById('tag-input');
+  if (!inp) return;
+  var val = inp.value.trim().replace(/,/g, '');
+  if (val) { addTag(val); inp.value = ''; inp.focus(); }
+}
+
+window.deleteChapter = async function(chapterId, title) {
+  if (!confirm('Удалить главу «' + title + '»? Это действие необратимо.')) return;
+  try {
+    const resp = await fetch('/api/chapters/' + chapterId + '/delete', {
+      method: 'POST', credentials: 'same-origin'
+    });
+    if (resp.ok) {
+      showToast('Глава удалена', 'success');
+      setTimeout(() => location.reload(), 800);
+    } else {
+      showToast('Ошибка при удалении', 'error');
+    }
+  } catch(e) { showToast('Ошибка', 'error'); }
+};
+
+function escHtml(s) {
+  return String(s).replace(/[&<>"']/g, function(c) {
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+  });
+}
+</script>
+{% endblock %}

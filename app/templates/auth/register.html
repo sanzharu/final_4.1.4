@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block title %}Регистрация — {{ site_name }}{% endblock %}
+
+{% block content %}
+<div class="auth-wrap">
+  <div class="auth-card">
+    <div class="auth-icon">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"/><line x1="16" y1="8" x2="2" y2="22"/><line x1="17.5" y1="15" x2="9" y2="15"/>
+      </svg>
+    </div>
+    <div class="auth-logo">Literary Haven</div>
+    <div class="auth-subtitle">Создать аккаунт — это бесплатно</div>
+
+    {% set err = request.query_params.get('error', '') %}
+    {% if err %}
+    <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:0.75rem 1rem;margin-bottom:1rem;color:#dc2626;font-size:0.88rem;">
+      {% if err == 'username_length' %}Имя пользователя: от 3 до 50 символов.
+      {% elif err == 'username_invalid' %}Имя пользователя: только латиница, цифры, _ и - (без пробелов и кириллицы).
+      {% elif err == 'username_taken' %}Это имя пользователя уже занято.
+      {% elif err == 'email_taken' %}Этот email уже зарегистрирован.
+      {% elif err == 'password_short' %}Пароль: минимум 8 символов.
+      {% elif err == 'password_no_upper' %}Пароль должен содержать хотя бы одну заглавную букву (A–Z).
+      {% elif err == 'password_no_digit' %}Пароль должен содержать хотя бы одну цифру (0–9).
+      {% else %}Ошибка при регистрации. Проверьте данные и попробуйте снова.
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <form method="post" action="/auth/register" novalidate id="reg-form">
+      <input type="hidden" name="want_to_write" id="want_to_write_input" value="">
+
+      <div class="form-group">
+        <label class="form-label" for="username">Имя пользователя *</label>
+        <input type="text" id="username" name="username" class="form-control" required minlength="3" maxlength="50" autocomplete="username" placeholder="username">
+        <div class="form-hint">3–50 символов, латиница, цифры, _ и -</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="display_name">Отображаемое имя</label>
+        <input type="text" id="display_name" name="display_name" class="form-control" maxlength="100" placeholder="Как вас называть?">
+      </div>
+      <input type="hidden" name="email" id="email" value="">
+      <div class="form-group">
+        <label class="form-label" for="password">Пароль *</label>
+        <input type="password" id="password" name="password" class="form-control" required minlength="8" autocomplete="new-password" placeholder="Минимум 8 символов">
+        <div class="pwd-strength"><div class="pwd-bar" id="pwd-bar"></div></div>
+        <div class="form-hint">Минимум 8 символов, заглавная буква (A–Z) и цифра</div>
+      </div>
+
+      <!-- Role selection -->
+      <div class="form-group" style="margin-top:1.25rem;">
+        <label class="form-label" style="display:block;margin-bottom:0.75rem;">Как вы планируете использовать платформу? *</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+          <div class="role-btn" id="btn-reader" onclick="selectRole('no')" tabindex="0" role="button"
+               onkeydown="if(event.key==='Enter'||event.key===' ')selectRole('no')">
+            <div style="font-size:1.6rem;margin-bottom:0.35rem;">📖</div>
+            <div style="font-weight:600;font-size:0.9rem;">Только читать</div>
+            <div style="font-size:0.76rem;color:var(--text-muted);margin-top:0.25rem;line-height:1.4;">Читать книги и следить за авторами</div>
+          </div>
+          <div class="role-btn" id="btn-author" onclick="selectRole('yes')" tabindex="0" role="button"
+               onkeydown="if(event.key==='Enter'||event.key===' ')selectRole('yes')">
+            <div style="font-size:1.6rem;margin-bottom:0.35rem;">✍️</div>
+            <div style="font-weight:600;font-size:0.9rem;">Читать и писать</div>
+            <div style="font-size:0.76rem;color:var(--text-muted);margin-top:0.25rem;line-height:1.4;">Читать книги и публиковать свои</div>
+          </div>
+        </div>
+        <div id="role-error" style="display:none;color:#dc2626;font-size:0.82rem;margin-top:0.5rem;">Пожалуйста, выберите один из вариантов выше.</div>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-full" style="border-radius:12px;padding:0.75rem;margin-top:0.75rem;">Создать аккаунт</button>
+    </form>
+
+    <div class="auth-footer">
+      Уже есть аккаунт? <a href="/auth/login">Войти</a>
+    </div>
+  </div>
+</div>
+
+<style>
+.role-btn {
+  padding: 1rem 0.75rem;
+  border-radius: 12px;
+  border: 2px solid var(--border-light, #e5e7eb);
+  background: var(--bg-surface, #fff);
+  cursor: pointer;
+  text-align: center;
+  transition: border-color 0.18s, background 0.18s, box-shadow 0.18s;
+  user-select: none;
+  -webkit-user-select: none;
+  font-family: var(--font-sans, sans-serif);
+  color: var(--text-primary, #1a1a1a);
+}
+.role-btn:hover {
+  border-color: var(--primary, #e07b54);
+  box-shadow: 0 0 0 3px rgba(224,123,84,0.12);
+}
+.role-btn.selected {
+  border-color: var(--primary, #e07b54);
+  background: rgba(224,123,84,0.08);
+  box-shadow: 0 0 0 3px rgba(224,123,84,0.18);
+}
+</style>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+var roleValue = '';
+
+function selectRole(value) {
+  roleValue = value;
+  document.getElementById('want_to_write_input').value = value;
+  document.getElementById('role-error').style.display = 'none';
+  document.getElementById('btn-reader').classList.toggle('selected', value === 'no');
+  document.getElementById('btn-author').classList.toggle('selected', value === 'yes');
+}
+
+document.getElementById('reg-form').addEventListener('submit', function(e) {
+  if (!roleValue) {
+    e.preventDefault();
+    document.getElementById('role-error').style.display = 'block';
+    document.querySelector('.role-btn').scrollIntoView({behavior:'smooth', block:'center'});
+    return false;
+  }
+});
+
+var pwdInput = document.getElementById('password');
+var pwdBar = document.getElementById('pwd-bar');
+if (pwdInput && pwdBar) {
+  pwdInput.addEventListener('input', function() {
+    var v = pwdInput.value;
+    var score = 0;
+    if (v.length >= 8) score++;
+    if (/[A-Z]/.test(v)) score++;
+    if (/[0-9]/.test(v)) score++;
+    if (/[^a-zA-Z0-9]/.test(v)) score++;
+    var colors = ['','#ef4444','#f97316','#eab308','#22c55e'];
+    pwdBar.style.width = (score * 25) + '%';
+    pwdBar.style.background = colors[score] || colors[1];
+  });
+}
+</script>
+{% endblock %}

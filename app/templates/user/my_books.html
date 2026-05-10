@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}Мои книги — {{ site_name }}{% endblock %}
+{% block content %}
+<div class="container" style="padding-top:calc(var(--navbar-h) + 2rem);padding-bottom:3rem;">
+
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2rem;">
+    <h1 style="font-family:var(--font-serif);font-size:2rem;font-weight:700;">Мои книги</h1>
+    <a href="/write/new" class="btn btn-primary">+ Новая книга</a>
+  </div>
+
+  {% macro book_row(book) %}
+    {% if book.genre %}
+      {% set gv = book.genre.value %}
+      {% if gv == 'fantasy' %}{% set c = '#5C6BC0' %}
+      {% elif gv == 'romance' %}{% set c = '#D81B60' %}
+      {% elif gv == 'scifi' %}{% set c = '#0277BD' %}
+      {% elif gv == 'horror' %}{% set c = '#37474F' %}
+      {% elif gv == 'detective' %}{% set c = '#00695C' %}
+      {% elif gv == 'thriller' %}{% set c = '#B71C1C' %}
+      {% elif gv == 'drama' %}{% set c = '#E65100' %}
+      {% elif gv == 'adventure' %}{% set c = '#1B5E20' %}
+      {% elif gv == 'mystery' %}{% set c = '#4A148C' %}
+      {% elif gv == 'historical' %}{% set c = '#4E342E' %}
+      {% elif gv == 'comedy' %}{% set c = '#BF360C' %}
+      {% else %}{% set c = '#6B5E4E' %}{% endif %}
+    {% else %}{% set c = '#6B5E4E' %}{% endif %}
+
+    <div style="background:var(--bg-surface);border-radius:var(--radius-lg);border:1px solid var(--border-light);padding:1rem 1.25rem;display:flex;align-items:center;gap:1rem;box-shadow:var(--shadow-sm);transition:box-shadow 0.2s;" onmouseover="this.style.boxShadow='var(--shadow-md)'" onmouseout="this.style.boxShadow='var(--shadow-sm)'">
+
+      <!-- Mini cover -->
+      <div style="width:56px;height:80px;border-radius:8px;background:{{ c }};flex-shrink:0;overflow:hidden;">
+        {% if book.cover_url %}
+          <img src="{{ book.cover_url }}" style="width:100%;height:100%;object-fit:cover;" alt="">
+        {% endif %}
+      </div>
+
+      <!-- Info -->
+      <div style="flex:1;min-width:0;">
+        <div style="font-family:var(--font-serif);font-size:1.05rem;font-weight:700;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:0.35rem;">
+          {{ book.title }}
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:0.3rem;margin-bottom:0.35rem;">
+          {% if not book.is_published %}
+            <span style="font-size:0.72rem;font-weight:500;padding:0.15rem 0.5rem;border-radius:20px;background:#F3E5F5;color:#7B1FA2;">Черновик</span>
+          {% elif book.status %}
+            {% if book.status.value == 'ongoing' %}<span style="font-size:0.72rem;font-weight:500;padding:0.15rem 0.5rem;border-radius:20px;background:#FFF3E0;color:#E65100;">В процессе</span>
+            {% elif book.status.value == 'completed' %}<span style="font-size:0.72rem;font-weight:500;padding:0.15rem 0.5rem;border-radius:20px;background:#E8F5E9;color:#2E7D32;">Завершено</span>
+            {% elif book.status.value == 'hiatus' %}<span style="font-size:0.72rem;font-weight:500;padding:0.15rem 0.5rem;border-radius:20px;background:#ECEFF1;color:#546E7A;">Пауза</span>
+            {% endif %}
+          {% endif %}
+          {% if book.is_draft_hidden %}
+            <span style="font-size:0.72rem;font-weight:500;padding:0.15rem 0.5rem;border-radius:20px;background:#ECEFF1;color:#546E7A;">Скрыта</span>
+          {% endif %}
+          {% if book.genre %}
+            <span style="font-size:0.72rem;padding:0.15rem 0.5rem;border-radius:20px;background:var(--accent-peach);color:#8b4513;">{{ book.genre.value | genre_label }}</span>
+          {% endif %}
+        </div>
+        <div style="font-family:var(--font-sans);font-size:0.78rem;color:var(--text-muted);">
+          {{ book.chapters_count }} глав · {{ book.updated_at | fmt_date if book.updated_at else '' }}
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div style="display:flex;gap:0.5rem;flex-shrink:0;align-items:center;">
+        <a href="/books/{{ book.slug }}" class="btn btn-ghost btn-sm">Просмотр</a>
+        <a href="/write/{{ book.id }}" class="btn btn-outline btn-sm">Редактировать</a>
+      </div>
+
+    </div>
+  {% endmacro %}
+
+  {% if published %}
+    <div style="margin-bottom:0.75rem;">
+      <h2 style="font-family:var(--font-serif);font-size:1.4rem;font-weight:700;">
+        Опубликованные <span style="font-family:var(--font-sans);font-size:0.95rem;font-weight:400;color:var(--text-muted);">({{ published|length }})</span>
+      </h2>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:0.6rem;margin-bottom:2.5rem;">
+      {% for book in published %}{{ book_row(book) }}{% endfor %}
+    </div>
+  {% endif %}
+
+  {% if drafts %}
+    <div style="margin-bottom:0.75rem;">
+      <h2 style="font-family:var(--font-serif);font-size:1.4rem;font-weight:700;">
+        Черновики и скрытые <span style="font-family:var(--font-sans);font-size:0.95rem;font-weight:400;color:var(--text-muted);">({{ drafts|length }})</span>
+      </h2>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:0.6rem;">
+      {% for book in drafts %}{{ book_row(book) }}{% endfor %}
+    </div>
+  {% endif %}
+
+  {% if not published and not drafts %}
+    <div class="empty-state">
+      <h3>У вас пока нет книг</h3>
+      <p style="margin-top:0.5rem;color:var(--text-muted);">Начните свою первую историю прямо сейчас</p>
+      <a href="/write/new" class="btn btn-primary" style="margin-top:1.25rem;">Написать первую книгу</a>
+    </div>
+  {% endif %}
+
+</div>
+{% endblock %}

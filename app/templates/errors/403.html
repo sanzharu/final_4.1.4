@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}403 — {{ site_name }}{% endblock %}
+{% block content %}
+<div class="container">
+  <div class="error-page">
+    <div class="error-icon"></div>
+    <div class="error-code">403</div>
+    <h2 class="error-title">Доступ запрещён</h2>
+    <p class="error-desc">У вас нет прав для просмотра этой страницы.</p>
+    <a href="/" class="btn btn-primary btn-lg">← На главную</a>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Панель управления — {{ site_name }}{% endblock %}
+{% block content %}
+<div class="container" style="padding-top:calc(var(--navbar-h)+1.5rem);padding-bottom:3rem;">
+  <div class="admin-layout">
+    <aside>{% include "admin/sidebar.html" %}</aside>
+    <div>
+      <h1 style="font-family:var(--font-serif);font-size:2rem;font-weight:700;margin-bottom:1.5rem;">Панель управления</h1>
+
+      <!-- Stats grid -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:1rem;margin-bottom:2.5rem;">
+        {% for val, label, color in [
+          (user_count, 'Пользователей', '#8B7355'),
+          (book_count, 'Всего книг', '#4A90D9'),
+          (published_count, 'Опубликовано', '#22c55e'),
+          (review_count, 'Отзывов', '#f59e0b'),
+          (report_count, 'Жалоб', '#ef4444'),
+        ] %}
+        <div style="background:var(--bg-surface);border-radius:var(--radius-lg);border:1px solid var(--border-light);padding:1.25rem;box-shadow:var(--shadow-sm);">
+          <div style="font-family:var(--font-serif);font-size:2rem;font-weight:700;color:{{ color }};">{{ val }}</div>
+          <div style="font-family:var(--font-sans);font-size:0.85rem;color:var(--text-muted);margin-top:0.25rem;">{{ label }}</div>
+        </div>
+        {% endfor %}
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;">
+        <!-- Recent users -->
+        <div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
+            <h3 style="font-family:var(--font-serif);font-size:1.1rem;font-weight:700;">Новые пользователи</h3>
+            <a href="/admin/users" style="font-family:var(--font-sans);font-size:0.82rem;color:var(--primary);">Все →</a>
+          </div>
+          <div style="background:var(--bg-surface);border-radius:var(--radius-lg);border:1px solid var(--border-light);overflow:hidden;">
+            {% for u in recent_users %}
+            <div style="display:flex;align-items:center;gap:0.75rem;padding:0.7rem 1rem;border-bottom:1px solid var(--border-light);{% if loop.last %}border-bottom:none;{% endif %}">
+              <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--primary-light));color:white;display:flex;align-items:center;justify-content:center;font-size:0.82rem;font-weight:700;flex-shrink:0;">
+                {{ (u.display_name or u.username)[0] | upper }}
+              </div>
+              <div style="flex:1;min-width:0;">
+                <div style="font-family:var(--font-sans);font-size:0.88rem;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                  <a href="/profile/{{ u.username }}" style="color:var(--text-primary);">{{ u.display_name or u.username }}</a>
+                </div>
+                <div style="font-family:var(--font-sans);font-size:0.75rem;color:var(--text-muted);">{{ u.created_at | fmt_date }}</div>
+              </div>
+              <span class="role-badge">{{ u.role | role_badge }}</span>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- Recent books -->
+        <div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
+            <h3 style="font-family:var(--font-serif);font-size:1.1rem;font-weight:700;">Последние книги</h3>
+            <a href="/admin/books" style="font-family:var(--font-sans);font-size:0.82rem;color:var(--primary);">Все →</a>
+          </div>
+          <div style="background:var(--bg-surface);border-radius:var(--radius-lg);border:1px solid var(--border-light);overflow:hidden;">
+            {% for b in recent_books %}
+            <div style="display:flex;align-items:center;gap:0.75rem;padding:0.7rem 1rem;border-bottom:1px solid var(--border-light);{% if loop.last %}border-bottom:none;{% endif %}">
+              <div style="flex:1;min-width:0;">
+                <div style="font-family:var(--font-sans);font-size:0.88rem;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                  <a href="/books/{{ b.slug }}" style="color:var(--text-primary);">{{ b.title }}</a>
+                </div>
+                <div style="font-family:var(--font-sans);font-size:0.75rem;color:var(--text-muted);">
+                  {{ b.author.display_name or b.author.username if b.author else b.author_id }} · {{ b.created_at | fmt_date }}
+                </div>
+              </div>
+              <span style="font-family:var(--font-sans);font-size:0.75rem;padding:0.15rem 0.5rem;border-radius:var(--radius-full);background:var(--accent-peach);color:#e65100;">{{ b.status.value }}</span>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

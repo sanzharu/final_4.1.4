@@ -1,0 +1,54 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: lhuser
+      POSTGRES_PASSWORD: strongpassword
+      POSTGRES_DB: literaryhaven
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lhuser -d literaryhaven"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://lhuser:strongpassword@db:5432/literaryhaven
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: change_this_in_production_64_chars_minimum_please_change_it
+      REFRESH_SECRET_KEY: another_64_chars_secret_key_for_refresh_tokens_change_this
+      APP_ENV: production
+      DEBUG: "false"
+      COOKIE_SECURE: "false"
+    volumes:
+      - ./uploads:/app/uploads
+    ports:
+      - "8000:8000"
+
+volumes:
+  pg_data:

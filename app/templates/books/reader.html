@@ -1,0 +1,338 @@
+{% extends "base.html" %}
+{% block title %}{{ chapter.title }} — {{ book.title }} — {{ site_name }}{% endblock %}
+
+{% block extra_head %}
+<style>
+  #main-navbar, footer, .site-footer, .mobile-nav { display: none !important; }
+  body { padding-bottom: 0 !important; }
+  .reader-overlay { position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:198;display:none; }
+  .reader-settings-sheet {
+    position:fixed;bottom:0;left:0;right:0;z-index:199;
+    background:#F0EDE8;border-radius:24px 24px 0 0;
+    padding:1.5rem 1.5rem 2.5rem;
+    transform:translateY(100%);transition:transform 0.35s cubic-bezier(0.32,0.72,0,1);
+    box-shadow:0 -8px 40px rgba(0,0,0,0.15);
+  }
+  .reader-settings-sheet.open { transform:translateY(0); }
+  .reader-overlay.open { display:block; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="reader-root" style="min-height:100vh;transition:background 0.3s,color 0.3s;">
+
+  <!-- Top bar -->
+  <div style="position:fixed;top:0;left:0;right:0;z-index:100;height:56px;background:rgba(244,236,216,0.95);backdrop-filter:blur(12px);display:flex;align-items:center;padding:0 1rem;gap:0.75rem;border-bottom:1px solid rgba(0,0,0,0.07);" id="reader-topbar">
+    <a href="/books/{{ book.slug }}" style="display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:50%;color:#5C4A32;flex-shrink:0;transition:background 0.15s;" id="reader-back-btn">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m15 18-6-6 6-6"/></svg>
+    </a>
+    <div style="flex:1;text-align:center;overflow:hidden;padding:0 0.25rem;">
+      <div style="font-family:var(--font-serif);font-weight:700;font-size:0.95rem;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" id="reader-book-title">{{ book.title }}</div>
+      <div style="font-family:var(--font-sans);font-size:0.75rem;opacity:0.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" id="reader-ch-title">{{ chapter.title }}</div>
+    </div>
+    <button onclick="openSettings()" style="display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:50%;background:transparent;border:none;cursor:pointer;flex-shrink:0;transition:background 0.15s;" id="reader-gear-btn">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </button>
+  </div>
+
+  <!-- Reading progress bar -->
+  <div style="position:fixed;top:56px;left:0;right:0;height:3px;background:rgba(0,0,0,0.08);z-index:99;">
+    <div id="progress-bar" style="height:100%;background:linear-gradient(90deg,#8B7355,#A67B5B);width:{{ progress_pct }}%;transition:width 0.2s;"></div>
+  </div>
+
+  <!-- Chapter content -->
+  <div style="padding:80px 1.5rem 120px;max-width:700px;margin:0 auto;" id="content-wrap">
+    <div id="reader-content" style="font-family:'Cormorant Garamond',Georgia,serif;font-size:18px;line-height:1.95;">
+      {% set paras = chapter.content.replace('\r\n','\n').replace('\r','\n') %}
+      {% for para in paras.split('\n\n') %}
+        {% if para.strip() %}
+          {% set rendered = para.strip() | render_md %}
+          {% if '<hr' in rendered or '<div' in rendered %}
+            {{ rendered | safe }}
+          {% else %}
+            <p style="margin-bottom:1.4rem;text-indent:0;">{{ rendered | safe }}</p>
+          {% endif %}
+        {% endif %}
+      {% endfor %}
+    </div>
+
+    {% if chapter.author_note %}
+    <aside style="margin-top:2rem;padding:1rem 1.25rem;background:rgba(139,115,85,0.08);border-left:3px solid #8B7355;border-radius:0 10px 10px 0;">
+      <div style="font-family:var(--font-sans);font-size:0.78rem;color:#8B7355;margin-bottom:0.4rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;">Примечание автора</div>
+      <div style="font-size:0.95rem;opacity:0.8;">{{ chapter.author_note }}</div>
+    </aside>
+    {% endif %}
+
+    <!-- All chapters -->
+    <details style="margin-top:3rem;padding-top:1.5rem;border-top:1px solid rgba(0,0,0,0.1);">
+      <summary style="cursor:pointer;font-family:var(--font-sans);font-size:0.88rem;opacity:0.6;list-style:none;padding:0.4rem 0;user-select:none;">Все главы ({{ chapters | length }})</summary>
+      <div style="display:flex;flex-direction:column;gap:0.4rem;margin-top:0.75rem;">
+        {% for ch in chapters %}
+          <a href="/books/{{ book.slug }}/chapters/{{ ch.number }}"
+             style="display:flex;align-items:center;gap:0.75rem;padding:0.75rem 1rem;border-radius:10px;border:1px solid {% if ch.id == chapter.id %}rgba(139,115,85,0.5){% else %}rgba(0,0,0,0.08){% endif %};background:{% if ch.id == chapter.id %}rgba(139,115,85,0.08){% else %}transparent{% endif %};text-decoration:none;transition:all 0.15s;">
+            <span style="width:28px;height:28px;border-radius:50%;background:rgba(139,115,85,0.15);display:flex;align-items:center;justify-content:center;font-family:var(--font-sans);font-size:0.75rem;font-weight:700;color:#8B7355;flex-shrink:0;">{{ ch.number }}</span>
+            <span style="font-family:var(--font-sans);font-size:0.88rem;color:inherit;">{{ ch.title }}</span>
+          </a>
+        {% endfor %}
+      </div>
+    </details>
+  </div>
+
+  <!-- Bottom navigation bar -->
+  <div style="position:fixed;bottom:0;left:0;right:0;z-index:100;height:56px;background:rgba(244,236,216,0.97);backdrop-filter:blur(12px);border-top:1px solid rgba(0,0,0,0.07);display:flex;align-items:center;justify-content:space-between;padding:0 0.5rem;" id="reader-bottom-bar">
+
+    {% if prev_chapter %}
+      <a href="/books/{{ book.slug }}/chapters/{{ prev_chapter.number }}"
+         style="display:flex;align-items:center;gap:0.25rem;padding:0.5rem 0.75rem;border-radius:20px;font-family:var(--font-sans);font-size:0.88rem;color:#5C4A32;text-decoration:none;transition:background 0.15s;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m15 18-6-6 6-6"/></svg>
+        Предыдущая
+      </a>
+    {% else %}
+      <a href="/books/{{ book.slug }}"
+         style="display:flex;align-items:center;gap:0.25rem;padding:0.5rem 0.75rem;border-radius:20px;font-family:var(--font-sans);font-size:0.88rem;color:#5C4A32;opacity:0.5;text-decoration:none;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m15 18-6-6 6-6"/></svg>
+        Предыдущая
+      </a>
+    {% endif %}
+
+    {% if current_user %}
+      {% if book.status and book.status == 'completed' %}
+        {# Book is complete — no waiting button needed #}
+      {% else %}
+      <button id="waiting-btn" data-waiting="{{ book.id }}" onclick="handleWaiting(this)"
+              aria-pressed="{{ 'true' if bookmarked else 'false' }}"
+              style="display:flex;align-items:center;gap:0.4rem;padding:0.4rem 0.9rem;border-radius:20px;background:{% if bookmarked %}rgba(139,115,85,0.15){% else %}transparent{% endif %};border:1px solid rgba(139,115,85,{% if bookmarked %}0.6{% else %}0.3{% endif %});font-family:var(--font-sans);font-size:0.82rem;color:#8B7355;cursor:pointer;transition:all 0.2s;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span id="waiting-label">{% if bookmarked %}Слежу{% else %}Жду продолжения{% endif %}</span>
+        <span id="waiting-count" style="background:rgba(139,115,85,0.15);padding:0.1rem 0.4rem;border-radius:10px;font-size:0.78rem;">{{ book.bookmarks_count }}</span>
+      </button>
+      {% endif %}
+    {% else %}
+      {% if not (book.status and book.status == 'completed') %}
+      <a href="/auth/login" style="display:flex;align-items:center;gap:0.4rem;padding:0.4rem 0.9rem;border-radius:20px;background:transparent;border:1px solid rgba(139,115,85,0.3);font-family:var(--font-sans);font-size:0.82rem;color:#8B7355;text-decoration:none;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Жду продолжения
+        <span style="background:rgba(139,115,85,0.15);padding:0.1rem 0.4rem;border-radius:10px;font-size:0.78rem;">{{ book.bookmarks_count }}</span>
+      </a>
+      {% endif %}
+    {% endif %}
+
+    {% if next_chapter %}
+      <a href="/books/{{ book.slug }}/chapters/{{ next_chapter.number }}"
+         style="display:flex;align-items:center;gap:0.25rem;padding:0.5rem 0.75rem;border-radius:20px;font-family:var(--font-sans);font-size:0.88rem;color:#5C4A32;text-decoration:none;transition:background 0.15s;">
+        Следующая
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m9 18 6-6-6-6"/></svg>
+      </a>
+    {% else %}
+      <a href="/books/{{ book.slug }}"
+         style="display:flex;align-items:center;gap:0.25rem;padding:0.5rem 0.75rem;border-radius:20px;font-family:var(--font-sans);font-size:0.88rem;color:#5C4A32;opacity:0.5;text-decoration:none;">
+        Следующая
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m9 18 6-6-6-6"/></svg>
+      </a>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Settings overlay -->
+<div class="reader-overlay" id="settings-overlay" onclick="closeSettings()"></div>
+
+<!-- Settings bottom sheet -->
+<div class="reader-settings-sheet" id="settings-sheet">
+  <div style="width:40px;height:4px;background:rgba(0,0,0,0.15);border-radius:2px;margin:0 auto 1.5rem;"></div>
+  <h3 style="font-family:var(--font-serif);font-size:1.2rem;font-weight:700;text-align:center;margin-bottom:1.5rem;">Настройки чтения</h3>
+
+  <!-- Theme -->
+  <div style="margin-bottom:1.5rem;">
+    <div style="font-family:var(--font-sans);font-size:0.82rem;font-weight:600;margin-bottom:0.75rem;opacity:0.7;">Тема</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.5rem;">
+      <button id="t-day" onclick="setTheme('day')"
+              style="padding:0.75rem;border-radius:12px;border:2px solid rgba(0,0,0,0.1);background:#FFFFFF;font-family:var(--font-sans);font-size:0.9rem;color:#2D2A26;cursor:pointer;font-weight:500;transition:all 0.2s;">
+        День
+      </button>
+      <button id="t-sepia" onclick="setTheme('sepia')"
+              style="padding:0.75rem;border-radius:12px;border:2px solid rgba(0,0,0,0.1);background:#F4ECD8;font-family:var(--font-sans);font-size:0.9rem;color:#5C4A32;cursor:pointer;font-weight:500;transition:all 0.2s;">
+        Сепия
+      </button>
+      <button id="t-night" onclick="setTheme('night')"
+              style="padding:0.75rem;border-radius:12px;border:2px solid rgba(0,0,0,0.1);background:#1A1A2E;font-family:var(--font-sans);font-size:0.9rem;color:#E8E8E8;cursor:pointer;font-weight:500;transition:all 0.2s;">
+        Ночь
+      </button>
+    </div>
+  </div>
+
+  <!-- Font size -->
+  <div style="margin-bottom:1.5rem;">
+    <div style="font-family:var(--font-sans);font-size:0.82rem;font-weight:600;margin-bottom:0.75rem;opacity:0.7;">
+      Размер текста: <span id="fs-val">18</span>px
+    </div>
+    <input type="range" id="fs-range" min="14" max="26" value="18"
+           oninput="applyFontSize(+this.value)"
+           style="width:100%;accent-color:#8B7355;height:4px;">
+  </div>
+
+  <!-- Width -->
+  <div style="margin-bottom:2rem;">
+    <div style="font-family:var(--font-sans);font-size:0.82rem;font-weight:600;margin-bottom:0.75rem;opacity:0.7;">
+      Ширина текста: <span id="width-val">700</span>px
+    </div>
+    <input type="range" id="width-range" min="400" max="900" value="700"
+           oninput="applyWidth(+this.value)"
+           style="width:100%;accent-color:#8B7355;height:4px;">
+  </div>
+
+  <button onclick="closeSettings()"
+          style="width:100%;padding:1rem;border-radius:14px;background:linear-gradient(135deg,#8B7355,#A67B5B);color:white;border:none;font-family:var(--font-sans);font-size:1rem;font-weight:600;cursor:pointer;">
+    Готово
+  </button>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(function() {
+  var KEY = 'lh_reader_v2';
+  var p = {}; try { p = JSON.parse(localStorage.getItem(KEY)||'{}'); } catch(e) {}
+  var fontSize = p.fs || 18, theme = p.theme || 'sepia', contentWidth = p.width || 700;
+
+  var THEMES = {
+    day:   { bg:'#FDFCF8', color:'#2D2A26', barBg:'rgba(253,252,248,0.95)', btnColor:'#2D2A26', progressBg:'rgba(0,0,0,0.07)', sheetBg:'#F0EDE8' },
+    sepia: { bg:'#F4ECD8', color:'#5C4A32', barBg:'rgba(244,236,216,0.95)', btnColor:'#5C4A32', progressBg:'rgba(0,0,0,0.07)', sheetBg:'#EDE3CC' },
+    night: { bg:'#1A1A2E', color:'#E0D8CC', barBg:'rgba(26,26,46,0.97)', btnColor:'#C0B8A8', progressBg:'rgba(255,255,255,0.08)', sheetBg:'#252536' }
+  };
+
+  function save() { try { localStorage.setItem(KEY, JSON.stringify({fs:fontSize,theme:theme,width:contentWidth})); } catch(e){} }
+
+  window.applyFontSize = function(v) {
+    fontSize = Math.max(14, Math.min(26, v));
+    var el = document.getElementById('reader-content');
+    if (el) el.style.fontSize = fontSize + 'px';
+    var lbl = document.getElementById('fs-val');
+    if (lbl) lbl.textContent = fontSize;
+    var rng = document.getElementById('fs-range');
+    if (rng) rng.value = fontSize;
+    save();
+  };
+
+  window.applyWidth = function(v) {
+    contentWidth = Math.max(400, Math.min(900, v));
+    var el = document.getElementById('content-wrap');
+    if (el) el.style.maxWidth = contentWidth + 'px';
+    var lbl = document.getElementById('width-val');
+    if (lbl) lbl.textContent = contentWidth;
+    var rng = document.getElementById('width-range');
+    if (rng) rng.value = contentWidth;
+    save();
+  };
+
+  window.setTheme = function(t) {
+    theme = t;
+    var T = THEMES[t];
+    var root = document.getElementById('reader-root');
+    var topbar = document.getElementById('reader-topbar');
+    var botbar = document.getElementById('reader-bottom-bar');
+    var sheet = document.getElementById('settings-sheet');
+    var progress = document.querySelector('[style*="rgba(0,0,0,0.08)"], [style*="rgba(255,255,255,0.08)"]');
+
+    if (root) { root.style.background = T.bg; root.style.color = T.color; }
+    if (topbar) topbar.style.background = T.barBg;
+    if (botbar) botbar.style.background = T.barBg;
+    if (sheet) sheet.style.background = T.sheetBg;
+
+    // Update back/gear btn color
+    ['reader-back-btn','reader-gear-btn'].forEach(function(id) {
+      var b = document.getElementById(id);
+      if (b) b.style.color = T.btnColor;
+    });
+    ['reader-book-title','reader-ch-title'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.style.color = T.color;
+    });
+
+    // Highlight active theme button
+    ['day','sepia','night'].forEach(function(id) {
+      var btn = document.getElementById('t-' + id);
+      if (!btn) return;
+      btn.style.border = '2px solid ' + (id === t ? '#8B7355' : 'rgba(0,0,0,0.1)');
+      btn.style.boxShadow = id === t ? '0 0 0 3px rgba(139,115,85,0.15)' : 'none';
+    });
+    save();
+  };
+
+  window.openSettings = function() {
+    document.getElementById('settings-sheet').classList.add('open');
+    document.getElementById('settings-overlay').classList.add('open');
+  };
+  window.closeSettings = function() {
+    document.getElementById('settings-sheet').classList.remove('open');
+    document.getElementById('settings-overlay').classList.remove('open');
+  };
+
+  // Waiting/Bookmark button
+  window.handleWaiting = async function(btn) {
+    var bookId = btn.dataset.waiting || btn.dataset.bookmark;
+    try {
+      var resp = await fetch('/api/books/' + bookId + '/bookmark', {method:'POST',credentials:'same-origin'});
+      if (resp.status === 401) { window.location.href = '/auth/login'; return; }
+      var data = await resp.json();
+      var isNow = data.bookmarked;
+      btn.setAttribute('aria-pressed', isNow ? 'true' : 'false');
+      btn.style.background = isNow ? 'rgba(139,115,85,0.15)' : 'transparent';
+      btn.style.borderColor = isNow ? 'rgba(139,115,85,0.6)' : 'rgba(139,115,85,0.3)';
+      var lbl = document.getElementById('waiting-label'); if (lbl) lbl.textContent = isNow ? 'Слежу' : 'Жду продолжения';
+      var cnt = document.getElementById('waiting-count');
+      if (cnt) cnt.textContent = data.count !== undefined ? data.count : cnt.textContent;
+    } catch(e) {}
+  };
+
+  // Scroll progress
+  window.addEventListener('scroll', function() {
+    var wrap = document.getElementById('content-wrap');
+    var bar = document.getElementById('progress-bar');
+    if (!wrap || !bar) return;
+    var rect = wrap.getBoundingClientRect();
+    var total = rect.height - window.innerHeight;
+    if (total <= 0) { bar.style.width = '100%'; return; }
+    var scrolled = Math.max(0, -rect.top);
+    bar.style.width = Math.min(100, (scrolled / total) * 100) + '%';
+  }, {passive:true});
+
+  // Init
+  applyFontSize(fontSize);
+  applyWidth(contentWidth);
+  setTheme(theme);
+})();
+
+// ── Footnote tooltips ────────────────────────────────────────────────────────
+(function() {
+  var tip = document.createElement('div');
+  tip.id = 'fn-tooltip';
+  tip.style.cssText = [
+    'position:fixed','z-index:9999','max-width:340px','background:#2c2010',
+    'color:#f5efe0','font-family:var(--font-sans)','font-size:0.82rem',
+    'line-height:1.55','padding:0.6rem 0.9rem','border-radius:8px',
+    'box-shadow:0 4px 20px rgba(0,0,0,0.35)','pointer-events:none',
+    'display:none','white-space:pre-wrap'
+  ].join(';');
+  document.body.appendChild(tip);
+
+  window.showFnTooltip = function(e, n, text) {
+    e.stopPropagation();
+    tip.textContent = '[' + n + '] ' + text.replace(/&#39;/g,"'").replace(/&quot;/g,'"');
+    tip.style.display = 'block';
+    var x = e.clientX, y = e.clientY;
+    var tw = 340, th = 120;
+    var left = Math.min(x + 10, window.innerWidth - tw - 12);
+    var top  = (y - th - 12 > 0) ? y - th - 12 : y + 20;
+    tip.style.left = left + 'px';
+    tip.style.top  = top  + 'px';
+  };
+
+  document.addEventListener('click', function(e) {
+    if (!e.target.classList.contains('fn-ref')) {
+      tip.style.display = 'none';
+    }
+  });
+  document.addEventListener('scroll', function() { tip.style.display = 'none'; }, {passive:true});
+})();
+</script>
+{% endblock %}

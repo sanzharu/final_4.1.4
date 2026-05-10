@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% block title %}Пользователи — Панель — {{ site_name }}{% endblock %}
+{% block content %}
+<div class="container" style="padding-top:calc(var(--navbar-h)+1.5rem);padding-bottom:3rem;">
+  <div class="admin-layout">
+    <aside>{% include "admin/sidebar.html" %}</aside>
+    <div style="min-width:0;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:0.75rem;">
+        <div>
+          <h1 style="font-family:var(--font-serif);font-size:2rem;font-weight:700;">Пользователи</h1>
+          <p style="font-family:var(--font-sans);font-size:0.88rem;color:var(--text-muted);">Всего: {{ total }}</p>
+        </div>
+      </div>
+
+      <!-- Search & filter -->
+      <form method="get" style="display:flex;gap:0.75rem;margin-bottom:1.25rem;flex-wrap:wrap;">
+        <input type="search" name="search" class="form-control" placeholder="Поиск по имени, email..."
+               value="{{ search }}" style="max-width:320px;">
+        <select name="role_filter" class="form-control" style="max-width:160px;" onchange="this.form.submit()">
+          <option value="" {% if not role_filter %}selected{% endif %}>Все роли</option>
+          {% for r in ['reader','author','moderator','admin'] %}
+            <option value="{{ r }}" {% if role_filter == r %}selected{% endif %}>{{ r | capitalize }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-primary btn-sm">Найти</button>
+        {% if search or role_filter %}
+          <a href="/admin/users" class="btn btn-ghost btn-sm">Сбросить</a>
+        {% endif %}
+      </form>
+
+      <div style="background:var(--bg-surface);border-radius:var(--radius-lg);border:1px solid var(--border-light);overflow:hidden;">
+        <table style="width:100%;border-collapse:collapse;">
+          <thead>
+            <tr style="background:#f8f6f2;border-bottom:1px solid var(--border-light);">
+              <th style="padding:0.75rem 1rem;text-align:left;font-family:var(--font-sans);font-size:0.82rem;font-weight:600;color:var(--text-secondary);">Пользователь</th>
+              <th style="padding:0.75rem 1rem;text-align:left;font-family:var(--font-sans);font-size:0.82rem;font-weight:600;color:var(--text-secondary);">Email</th>
+              <th style="padding:0.75rem 1rem;text-align:left;font-family:var(--font-sans);font-size:0.82rem;font-weight:600;color:var(--text-secondary);white-space:nowrap;">Роль</th>
+              <th style="padding:0.75rem 1rem;text-align:left;font-family:var(--font-sans);font-size:0.82rem;font-weight:600;color:var(--text-secondary);">Статус</th>
+              <th style="padding:0.75rem 1rem;text-align:left;font-family:var(--font-sans);font-size:0.82rem;font-weight:600;color:var(--text-secondary);white-space:nowrap;">Дата</th>
+              <th style="padding:0.75rem 1rem;text-align:left;font-family:var(--font-sans);font-size:0.82rem;font-weight:600;color:var(--text-secondary);">Действия</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for u in users %}
+            <tr style="border-bottom:1px solid rgba(0,0,0,0.04);">
+              <td style="padding:0.85rem 1rem;">
+                <div style="display:flex;align-items:center;gap:0.6rem;">
+                  <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--primary-light));color:white;display:flex;align-items:center;justify-content:center;font-size:0.78rem;font-weight:700;flex-shrink:0;">
+                    {{ (u.display_name or u.username)[0] | upper }}
+                  </div>
+                  <div>
+                    <a href="/profile/{{ u.username }}" style="font-family:var(--font-sans);font-size:0.88rem;font-weight:500;color:var(--text-primary);">{{ u.display_name or u.username }}</a>
+                    <div style="font-family:var(--font-sans);font-size:0.75rem;color:var(--text-muted);">@{{ u.username }}</div>
+                  </div>
+                </div>
+              </td>
+              <td style="padding:0.85rem 1rem;font-family:var(--font-sans);font-size:0.85rem;color:var(--text-muted);">{{ u.email }}</td>
+              <td style="padding:0.85rem 1rem;">
+                {% if current_user.is_admin %}
+                <form method="post" action="/admin/users/{{ u.id }}/role">
+                  <select name="role" onchange="this.form.submit()"
+                          style="font-family:var(--font-sans);font-size:0.8rem;padding:0.2rem 0.5rem;border:1px solid var(--border-light);border-radius:var(--radius-md);background:var(--bg-surface);">
+                    {% for r in ['reader','author','moderator','admin'] %}
+                      <option value="{{ r }}" {% if u.role.value == r %}selected{% endif %}>{{ r | capitalize }}</option>
+                    {% endfor %}
+                  </select>
+                </form>
+                {% else %}
+                  <span class="role-badge">{{ u.role | role_badge }}</span>
+                {% endif %}
+              </td>
+              <td style="padding:0.85rem 1rem;">
+                {% if u.is_banned %}
+                  <span style="font-family:var(--font-sans);font-size:0.78rem;padding:0.15rem 0.5rem;border-radius:var(--radius-full);background:#fef2f2;color:#dc2626;font-weight:500;">Заблокирован</span>
+                {% elif not u.is_active %}
+                  <span style="font-family:var(--font-sans);font-size:0.78rem;padding:0.15rem 0.5rem;border-radius:var(--radius-full);background:#f3f4f6;color:#6b7280;font-weight:500;">Деактивирован</span>
+                {% else %}
+                  <span style="font-family:var(--font-sans);font-size:0.78rem;padding:0.15rem 0.5rem;border-radius:var(--radius-full);background:var(--accent-mint);color:#2e7d32;font-weight:500;">Активен</span>
+                {% endif %}
+              </td>
+              <td style="padding:0.85rem 1rem;font-family:var(--font-sans);font-size:0.82rem;color:var(--text-muted);white-space:nowrap;">{{ u.created_at | fmt_date }}</td>
+              <td style="padding:0.85rem 1rem;">
+                {% if u.id != current_user.id %}
+                <div style="display:flex;gap:0.4rem;flex-wrap:wrap;">
+                  {% if u.is_banned %}
+                    <form method="post" action="/admin/users/{{ u.id }}/unban" style="display:inline;">
+                      <button type="submit" style="font-family:var(--font-sans);font-size:0.78rem;padding:0.3rem 0.7rem;border-radius:var(--radius-full);border:1px solid #22c55e;background:transparent;color:#16a34a;cursor:pointer;white-space:nowrap;">
+                        Разблокировать
+                      </button>
+                    </form>
+                  {% else %}
+                    <button onclick="showBanModal({{ u.id }}, '{{ u.username }}')"
+                            style="font-family:var(--font-sans);font-size:0.78rem;padding:0.3rem 0.7rem;border-radius:var(--radius-full);border:1px solid #fca5a5;background:transparent;color:#dc2626;cursor:pointer;white-space:nowrap;">
+                      Заблокировать
+                    </button>
+                  {% endif %}
+                  {% if current_user.is_admin %}
+                    <form method="post" action="/admin/users/{{ u.id }}/deactivate" style="display:inline;">
+                      <button type="submit" onclick="return confirm('Деактивировать {{ u.username }}?')"
+                              style="font-family:var(--font-sans);font-size:0.78rem;padding:0.3rem 0.7rem;border-radius:var(--radius-full);border:1px solid var(--border-mid);background:transparent;color:var(--text-secondary);cursor:pointer;white-space:nowrap;">
+                        {{ 'Деактивирован' if not u.is_active else 'Деактивировать' }}
+                      </button>
+                    </form>
+                  {% endif %}
+                </div>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      {% if pages > 1 %}
+      <nav class="pagination">
+        {% for p in range(1, pages+1) %}
+          <a href="/admin/users?page={{ p }}&search={{ search }}&role_filter={{ role_filter }}" class="page-link {% if p == page %}active{% endif %}">{{ p }}</a>
+        {% endfor %}
+      </nav>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Ban modal -->
+<div id="ban-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:500;align-items:center;justify-content:center;">
+  <div style="background:var(--bg-surface);border-radius:var(--radius-xl);padding:2rem;max-width:420px;width:90%;box-shadow:var(--shadow-xl);">
+    <h3 style="font-family:var(--font-serif);font-size:1.2rem;margin-bottom:1rem;">Заблокировать пользователя <span id="ban-username"></span></h3>
+    <form id="ban-form" method="post">
+      <div class="form-group">
+        <label class="form-label">Причина блокировки</label>
+        <select name="reason" class="form-control">
+          <option value="Нарушение правил платформы">Нарушение правил платформы</option>
+          <option value="Спам">Спам</option>
+          <option value="Оскорбительный контент">Оскорбительный контент</option>
+          <option value="Запрещённый контент">Запрещённый контент</option>
+          <option value="Мошенничество">Мошенничество</option>
+          <option value="Другое">Другое</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:0.75rem;justify-content:flex-end;margin-top:1rem;">
+        <button type="button" onclick="hideBanModal()" class="btn btn-ghost">Отмена</button>
+        <button type="submit" class="btn btn-primary" style="background:#dc2626;">Заблокировать</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+{% block extra_scripts %}
+<script>
+function showBanModal(id, name) {
+  document.getElementById('ban-username').textContent = name;
+  document.getElementById('ban-form').action = '/admin/users/' + id + '/ban';
+  document.getElementById('ban-modal').style.display = 'flex';
+}
+function hideBanModal() {
+  document.getElementById('ban-modal').style.display = 'none';
+}
+document.getElementById('ban-modal')?.addEventListener('click', function(e) {
+  if (e.target === this) hideBanModal();
+});
+</script>
+{% endblock %}

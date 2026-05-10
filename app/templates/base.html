@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="{% block meta_description %}Literary Haven — читай, пиши, открывай новые миры{% endblock %}">
+  <title>{% block title %}{{ site_name }}{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/main.css">
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar navbar-solid" id="main-navbar" role="navigation" aria-label="Главная навигация">
+  <div class="navbar-inner">
+    <!-- Logo -->
+    <a href="/" class="navbar-logo" aria-label="Literary Haven — главная">
+      <span class="logo-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"/><line x1="16" y1="8" x2="2" y2="22"/><line x1="17.5" y1="15" x2="9" y2="15"/>
+        </svg>
+      </span>
+      <span class="hidden sm:inline">Literary Haven</span>
+    </a>
+
+    <!-- Search -->
+    <form class="navbar-search" action="/catalog" method="get" role="search">
+      <svg class="navbar-search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input type="search" name="search" value="{{ request.query_params.get('search','') }}" placeholder="Поиск историй, авторов..." aria-label="Поиск" autocomplete="off">
+    </form>
+
+    <!-- Mobile toggle -->
+    <button class="navbar-toggle" id="nav-toggle" aria-label="Меню" aria-expanded="false" aria-controls="navbar-nav">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
+
+    <!-- Nav links -->
+    <div class="navbar-nav" id="navbar-nav">
+      <a href="/" class="nav-btn {% if request.url.path == '/' %}active{% endif %}">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        Главная
+      </a>
+      <a href="/catalog" class="nav-btn {% if '/catalog' in request.url.path %}active{% endif %}">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+        Каталог
+      </a>
+      {% if current_user %}
+        {% if current_user.can_publish %}
+        <a href="/write/new" class="nav-btn {% if '/write' in request.url.path %}active{% endif %}">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.828 2.828 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+          Написать
+        </a>
+        {% endif %}
+        {% if current_user.is_moderator_or_higher %}
+          <a href="/admin" class="nav-btn {% if '/admin' in request.url.path %}active{% endif %}">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            Панель
+          </a>
+        {% endif %}
+        <!-- Notification bell (real) -->
+        <div style="position:relative;" id="notif-wrapper">
+          <button id="notif-btn" aria-label="Уведомления" onclick="toggleNotifPanel()"
+                  style="display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:50%;background:transparent;border:none;cursor:pointer;color:var(--text-secondary);transition:color 0.15s;position:relative;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+            <span id="notif-badge" style="display:none;position:absolute;top:1px;right:1px;width:16px;height:16px;border-radius:50%;background:var(--primary);color:white;font-size:0.62rem;font-weight:700;align-items:center;justify-content:center;line-height:1;"></span>
+          </button>
+          <div id="notif-panel" style="display:none;position:absolute;right:0;top:calc(100% + 0.5rem);width:320px;background:rgba(255,255,255,0.97);backdrop-filter:blur(16px);border-radius:var(--radius-xl);border:1px solid rgba(255,255,255,0.7);box-shadow:var(--shadow-xl);z-index:200;overflow:hidden;">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:0.85rem 1rem;border-bottom:1px solid var(--border-light);">
+              <h3 style="font-family:var(--font-serif);font-size:1.15rem;font-weight:700;letter-spacing:0.01em;">Уведомления</h3>
+              <button onclick="markAllRead()" style="font-family:var(--font-sans);font-size:0.75rem;color:var(--primary);background:none;border:none;cursor:pointer;">Прочитать все</button>
+            </div>
+            <div id="notif-list" style="max-height:340px;overflow-y:auto;">
+              <div style="padding:2rem;text-align:center;color:var(--text-muted);font-family:var(--font-sans);font-size:0.85rem;">Загрузка...</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- User dropdown -->
+        <div class="dropdown" data-dropdown>
+          <button class="user-avatar" aria-label="Меню пользователя" aria-expanded="false" aria-haspopup="true">
+            {% if current_user.avatar_url %}
+              <img src="{{ current_user.avatar_url }}" alt="{{ current_user.display_name }}">
+            {% else %}
+              {{ (current_user.display_name or current_user.username)[0] | upper }}
+            {% endif %}
+          </button>
+          <div class="dropdown-menu" role="menu" hidden>
+            <div class="dropdown-user-info">
+              <span>{{ current_user.display_name or current_user.username }}</span>
+              <span class="role-badge role-{{ current_user.role.value }}">{{ current_user.role | role_badge }}</span>
+            </div>
+            <div class="dropdown-divider"></div>
+            <a href="/profile/{{ current_user.username }}" class="dropdown-item" role="menuitem">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              Профиль
+            </a>
+            <a href="/bookmarks" class="dropdown-item" role="menuitem">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m19 21-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
+              Закладки
+            </a>
+            <a href="/subscriptions" class="dropdown-item" role="menuitem">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+              Подписки
+            </a>
+            {% if current_user.can_publish %}
+            <a href="/my-books" class="dropdown-item" role="menuitem">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+              Мои книги
+            </a>
+            {% endif %}
+            <a href="/settings" class="dropdown-item" role="menuitem">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+              Настройки
+            </a>
+            <div class="dropdown-divider"></div>
+            <button class="dropdown-item danger" data-action="logout" role="menuitem">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+              Выйти
+            </button>
+          </div>
+        </div>
+      {% else %}
+        <a href="/auth/login" class="nav-btn">Войти</a>
+        <a href="/auth/register" class="btn-write">Регистрация</a>
+      {% endif %}
+    </div>
+  </div>
+</nav>
+
+<!-- Flash messages -->
+{% with msgs = request.query_params %}
+  {% if msgs.get('error') %}
+    <div class="container" style="margin-top:calc(var(--navbar-h) + 1rem)">
+      <div class="alert alert-danger" data-auto-hide role="alert">
+        {% set em = {'invalid_credentials':'Неверный email или пароль','account_disabled':'Аккаунт заблокирован','email_taken':'Email уже используется','username_taken':'Имя занято','password_short':'Пароль слишком короткий','wrong_password':'Неверный текущий пароль','state_mismatch':'Ошибка OAuth','oauth_failed':'Ошибка входа'} %}
+         {{ em.get(msgs.get('error'), msgs.get('error')) }}
+      </div>
+    </div>
+  {% endif %}
+  {% if msgs.get('saved') %}
+    <div class="container" style="margin-top:calc(var(--navbar-h) + 1rem)">
+      <div class="alert alert-success" data-auto-hide role="alert"> Изменения сохранены</div>
+    </div>
+  {% endif %}
+{% endwith %}
+
+<main id="main-content" aria-live="polite">{% block content %}{% endblock %}</main>
+
+<!-- Footer -->
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <span class="footer-logo"> Literary Haven</span>
+      <p>Место, где рождаются миры</p>
+    </div>
+    <div class="footer-links">
+      <div>
+        <strong>Навигация</strong>
+        <a href="/">Главная</a>
+        <a href="/catalog">Каталог</a>
+        {% if current_user and current_user.can_publish %}<a href="/write/new">Написать</a>{% endif %}
+      </div>
+      <div>
+        <strong>Жанры</strong>
+        <a href="/catalog?genre=fantasy">Фэнтези</a>
+        <a href="/catalog?genre=romance">Романтика</a>
+        <a href="/catalog?genre=detective">Детектив</a>
+      </div>
+      <div>
+        <strong>О проекте</strong>
+        <a href="/about">О нас</a>
+        <a href="/rules">Правила</a>
+      </div>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span class="footer-copy">&copy; {{ current_year }} Literary Haven. Все права защищены.</span>
+  </div>
+</footer>
+
+<!-- Mobile nav -->
+<nav class="mobile-nav" aria-label="Мобильная навигация">
+  <div class="mobile-nav-inner">
+    <a href="/" class="mobile-nav-btn {% if request.url.path == '/' %}active{% endif %}">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      Главная
+    </a>
+    <a href="/catalog" class="mobile-nav-btn {% if '/catalog' in request.url.path %}active{% endif %}">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      Поиск
+    </a>
+    {% if current_user %}
+      <a href="/subscriptions" class="mobile-nav-btn {% if '/subscriptions' in request.url.path %}active{% endif %}">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+        Подписки
+      </a>
+      {% if current_user.can_publish %}
+      <a href="/my-books" class="mobile-nav-btn {% if '/my-books' in request.url.path %}active{% endif %}">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+        Книги
+      </a>
+      {% endif %}
+      {% if current_user.can_publish %}
+      <a href="/write/new" class="mobile-nav-btn {% if '/write' in request.url.path %}active{% endif %}">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.828 2.828 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+        Студия
+      </a>
+      {% endif %}
+    {% else %}
+      <a href="/auth/login" class="mobile-nav-btn">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        Войти
+      </a>
+    {% endif %}
+  </div>
+</nav>
+
+<!-- Toast container -->
+<div id="toast-container" role="status" aria-live="polite"></div>
+
+<script src="/static/js/main.js"></script>
+<script>
+// Navbar scroll effect
+const navbar = document.getElementById('main-navbar');
+window.addEventListener('scroll', () => {
+  if (window.scrollY > 20) navbar.classList.add('scrolled');
+  else navbar.classList.remove('scrolled');
+}, {passive: true});
+
+// Mobile toggle
+const navToggle = document.getElementById('nav-toggle');
+const navbarNav = document.getElementById('navbar-nav');
+if (navToggle && navbarNav) {
+  navToggle.addEventListener('click', () => {
+    const open = navbarNav.classList.toggle('open');
+    navToggle.setAttribute('aria-expanded', open);
+  });
+  document.addEventListener('click', (e) => {
+    if (!navToggle.contains(e.target) && !navbarNav.contains(e.target)) {
+      navbarNav.classList.remove('open');
+      navToggle.setAttribute('aria-expanded', 'false');
+    }
+  });
+}
+
+// Auto-hide alerts
+document.querySelectorAll('[data-auto-hide]').forEach(el => {
+  setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity 0.5s'; setTimeout(() => el.remove(), 500); }, 4000);
+});
+</script>
+{% block extra_scripts %}{% endblock %}
+</body>
+</html>

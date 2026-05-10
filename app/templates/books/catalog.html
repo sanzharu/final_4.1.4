@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Каталог — {{ site_name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="page-header">
+    <h1> Каталог</h1>
+    <p style="color:var(--text-secondary)">{{ total | fmt_number }} произведений</p>
+  </div>
+
+  <!-- Section tabs: All / Russian / Foreign -->
+  <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;">
+    {% for label, val in [('Все произведения',''),('Русская литература','russian'),('Иностранная литература','foreign')] %}
+    <a href="/catalog?section={{ val }}{% if active_order %}&order={{ active_order }}{% endif %}{% if active_genre %}&genre={{ active_genre }}{% endif %}"
+       style="padding:0.45rem 1.1rem;border-radius:var(--radius-full);font-family:var(--font-sans);font-size:0.85rem;font-weight:600;text-decoration:none;border:1.5px solid {% if active_section == val %}var(--primary){% else %}var(--border-mid){% endif %};background:{% if active_section == val %}var(--primary){% else %}transparent{% endif %};color:{% if active_section == val %}white{% else %}var(--text-secondary){% endif %};transition:all 0.15s;">
+      {{ label }}
+    </a>
+    {% endfor %}
+  </div>
+
+  <!-- Genre chips -->
+  <div class="genre-chips" role="list" aria-label="Фильтр по жанрам">
+    <a href="/catalog" class="genre-chip {% if not active_genre %}active{% endif %}" role="listitem">Все жанры</a>
+    {% for g in genres %}
+      <a href="/catalog?genre={{ g.slug }}{% if active_order %}&order={{ active_order }}{% endif %}" class="genre-chip {% if active_genre == g.slug %}active{% endif %}" role="listitem">{{ g.emoji or '' }} {{ g.name }}</a>
+    {% endfor %}
+  </div>
+
+  <!-- Controls -->
+  <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap">
+    <div style="flex:1;min-width:200px">
+      <input type="search" id="catalog-search" class="form-control" placeholder=" Поиск по названию..." value="{{ search }}" aria-label="Поиск книг" style="max-width:400px;border-radius:var(--radius-full)">
+    </div>
+    <div style="display:flex;gap:0.4rem;flex-wrap:wrap">
+      {% for label, val in [('Популярные','views_count'),('Рейтинг','avg_rating'),('Новые','created_at'),('Обновления','last_chapter_at')] %}
+        <a href="/catalog?order={{ val }}{% if active_genre %}&genre={{ active_genre }}{% endif %}" class="btn btn-sm {% if active_order == val %}btn-primary{% else %}btn-ghost{% endif %}">{{ label }}</a>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Grid -->
+  {% if books %}
+    <div class="books-grid">
+      {% for book in books %}
+        {% include "partials/book_card.html" %}
+      {% endfor %}
+    </div>
+
+    {% if pages > 1 %}
+      <nav class="pagination" aria-label="Страницы">
+        {% if page > 1 %}
+          <a href="/catalog?page={{ page-1 }}&order={{ active_order }}{% if active_section %}&section={{ active_section }}{% endif %}{% if active_genre %}&genre={{ active_genre }}{% endif %}{% if search %}&search={{ search }}{% endif %}" class="page-link" aria-label="Предыдущая">←</a>
+        {% endif %}
+        {% for p in range(1, pages+1) %}
+          {% if p == page or (p <= 3) or (p >= pages-1) or (p >= page-1 and p <= page+1) %}
+            <a href="/catalog?page={{ p }}&order={{ active_order }}{% if active_section %}&section={{ active_section }}{% endif %}{% if active_genre %}&genre={{ active_genre }}{% endif %}{% if search %}&search={{ search }}{% endif %}" class="page-link {% if p == page %}active{% endif %}" {% if p == page %}aria-current="page"{% endif %}>{{ p }}</a>
+          {% elif p == 4 and page > 5 %}
+            <span class="page-link disabled">…</span>
+          {% elif p == pages-2 and page < pages-4 %}
+            <span class="page-link disabled">…</span>
+          {% endif %}
+        {% endfor %}
+        {% if page < pages %}
+          <a href="/catalog?page={{ page+1 }}&order={{ active_order }}{% if active_section %}&section={{ active_section }}{% endif %}{% if active_genre %}&genre={{ active_genre }}{% endif %}{% if search %}&search={{ search }}{% endif %}" class="page-link" aria-label="Следующая">→</a>
+        {% endif %}
+      </nav>
+    {% endif %}
+  {% else %}
+    <div class="empty-state">
+      <div class="empty-state-icon"></div>
+      <h3>Книги не найдены</h3>
+      <p>Попробуйте другой запрос или жанр</p>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const searchInput = document.getElementById('catalog-search');
+if (searchInput) {
+  let timer;
+  searchInput.addEventListener('input', () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      const params = new URLSearchParams(window.location.search);
+      if (searchInput.value) params.set('search', searchInput.value);
+      else params.delete('search');
+      params.delete('page');
+      window.location.search = params.toString();
+    }, 600);
+  });
+}
+</script>
+{% endblock %}

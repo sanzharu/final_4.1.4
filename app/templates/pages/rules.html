@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Правила — {{ site_name }}{% endblock %}
+{% block content %}
+<div class="container" style="max-width:760px;padding:3rem 1.5rem;">
+  <h1 style="font-family:var(--font-serif);font-size:2.2rem;margin-bottom:1.5rem;">Правила платформы</h1>
+  <div style="font-family:var(--font-sans);font-size:1rem;line-height:1.8;color:var(--text-secondary);display:flex;flex-direction:column;gap:1.5rem;">
+    <section>
+      <h2 style="font-family:var(--font-serif);font-size:1.3rem;color:var(--text-primary);margin-bottom:0.5rem;">1. Контент</h2>
+      <p>Публикуемые материалы должны быть оригинальными или иметь соответствующие права. Запрещён контент, нарушающий авторские права третьих лиц, а также материалы, пропагандирующие насилие или дискриминацию.</p>
+    </section>
+    <section>
+      <h2 style="font-family:var(--font-serif);font-size:1.3rem;color:var(--text-primary);margin-bottom:0.5rem;">2. Поведение</h2>
+      <p>Уважайте других пользователей. Оскорбления, спам и преследование других участников сообщества недопустимы.</p>
+    </section>
+    <section>
+      <h2 style="font-family:var(--font-serif);font-size:1.3rem;color:var(--text-primary);margin-bottom:0.5rem;">3. Возрастные ограничения</h2>
+      <p>Контент для взрослых должен быть соответствующим образом помечен. Пользователи несут ответственность за корректную маркировку своих произведений.</p>
+    </section>
+    <section>
+      <h2 style="font-family:var(--font-serif);font-size:1.3rem;color:var(--text-primary);margin-bottom:0.5rem;">4. Модерация</h2>
+      <p>Администрация оставляет за собой право удалять материалы, нарушающие правила, и блокировать пользователей без предварительного уведомления.</p>
+    </section>
+  </div>
+</div>
+{% endblock %}

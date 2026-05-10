@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Literary Haven — Читай. Пиши. Открывай.{% endblock %}
+
+{% block content %}
+<!-- Hero -->
+<section class="hero">
+  <div class="container">
+    <div class="animate-fade-in-up">
+      <h1 class="hero-title">Место, где<br><em>рождаются миры</em></h1>
+      <p class="hero-sub">Откройте для себя истории, которые тронут душу. Тысячи книг от авторов со всего мира.</p>
+      <div class="hero-actions">
+        <a href="/catalog" class="btn btn-primary btn-lg">Начать чтение</a>
+        {% if not current_user %}
+          <a href="/auth/register" class="btn btn-outline btn-lg">Опубликовать работу</a>
+        {% elif current_user.can_publish %}
+          <a href="/write/new" class="btn btn-outline btn-lg">Написать книгу</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Featured -->
+{% if featured %}
+<section class="section" style="background:linear-gradient(180deg,rgba(232,245,233,0.3) 0%,transparent 100%);border-top:1px solid var(--border-light)">
+  <div class="container">
+    <div class="section-header">
+      <h2 class="section-title"> <span>Рекомендуем</span></h2>
+      <a href="/catalog?order=views_count" class="btn btn-ghost btn-sm">Все книги →</a>
+    </div>
+    <div class="books-grid">
+      {% for book in featured %}
+        {% include "partials/book_card.html" %}
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
+<!-- Popular -->
+<section class="section">
+  <div class="container">
+    <div class="section-header">
+      <h2 class="section-title"> <span>Популярное</span></h2>
+      <a href="/catalog?order=views_count" class="btn btn-ghost btn-sm">Смотреть все →</a>
+    </div>
+    <div class="books-grid">
+      {% for book in popular %}
+        {% include "partials/book_card.html" %}
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<!-- Genres -->
+{% if genres %}
+<section class="section" style="background:rgba(255,243,224,0.3);border-top:1px solid var(--border-light);border-bottom:1px solid var(--border-light)">
+  <div class="container">
+    <div class="section-header">
+      <h2 class="section-title"> <span>Жанры</span></h2>
+    </div>
+    <div class="genre-chips">
+      {% for g in genres %}
+        <a href="/catalog?genre={{ g.slug }}" class="genre-chip">{{ g.emoji or '' }} {{ g.name }}</a>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
+<!-- Newest -->
+<section class="section">
+  <div class="container">
+    <div class="section-header">
+      <h2 class="section-title"> <span>Новинки</span></h2>
+      <a href="/catalog?order=created_at" class="btn btn-ghost btn-sm">Все новинки →</a>
+    </div>
+    <div class="books-grid">
+      {% for book in newest %}
+        {% include "partials/book_card.html" %}
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}

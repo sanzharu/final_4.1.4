@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Моя библиотека — Literary Haven{% endblock %}
+{% block content %}
+<div class="page-wrap"><div class="page-inner">
+  <h1 class="section-title" style="margin-bottom:28px">Моя <span>библиотека</span></h1>
+  {% if books %}
+  <div class="cards-grid-wide">
+    {% for book in books %}{% with %}{% include "partials/book_card.html" %}{% endwith %}{% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state"><div class="empty-state-icon"></div><h3>Библиотека пуста</h3><p>Добавляйте книги в закладки, чтобы читать позже</p><a href="/books" class="btn btn-primary" style="margin-top:16px">Перейти в каталог</a></div>
+  {% endif %}
+</div></div>
+{% endblock %}

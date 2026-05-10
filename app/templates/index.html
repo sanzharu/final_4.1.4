@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% block title %}Literary Haven — Читай. Пиши. Открывай.{% endblock %}
+
+{% block content %}
+
+<!-- Hero -->
+<section class="hero">
+  <div class="container">
+    <div class="animate-fade-in-up">
+      <div style="display:inline-block;padding:0.35rem 1rem;border-radius:var(--radius-full);background:rgba(139,115,85,0.1);color:var(--primary);font-size:0.85rem;font-weight:600;margin-bottom:1.25rem"> Место, где рождаются миры</div>
+      <h1 class="hero-title">Каждая история<br><em>заслуживает быть услышанной</em></h1>
+      <p class="hero-sub">Literary Haven — пространство для авторов и читателей.<br>Пишите, публикуйте, открывайте новые миры каждый день.</p>
+      <div class="hero-actions">
+        <a href="/books" class="btn btn-primary btn-lg"> Читать сейчас</a>
+        {% if current_user and current_user.can_publish %}
+          <a href="/write" class="btn btn-outline btn-lg"> Написать историю</a>
+        {% elif current_user %}
+          <a href="/settings" class="btn btn-outline btn-lg"> Стать автором</a>
+        {% else %}
+          <a href="/auth/register" class="btn btn-outline btn-lg"> Начать писать</a>
+        {% endif %}
+      </div>
+      {% if stats %}
+      <div style="display:flex;gap:2.5rem;justify-content:center;margin-top:2.5rem;flex-wrap:wrap">
+        <div style="text-align:center">
+          <div style="font-family:var(--font-serif);font-size:1.8rem;font-weight:700;color:var(--primary)">{{ stats.books }}</div>
+          <div style="font-size:0.82rem;color:var(--text-muted)">книг</div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-family:var(--font-serif);font-size:1.8rem;font-weight:700;color:var(--primary)">{{ stats.users }}</div>
+          <div style="font-size:0.82rem;color:var(--text-muted)">авторов</div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-family:var(--font-serif);font-size:1.8rem;font-weight:700;color:var(--primary)">{{ stats.chapters }}</div>
+          <div style="font-size:0.82rem;color:var(--text-muted)">глав</div>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</section>
+
+<!-- Featured -->
+{% if featured %}
+<section class="section" style="background:linear-gradient(180deg,rgba(232,245,233,0.25) 0%,transparent 100%);border-top:1px solid var(--border-light)">
+  <div class="container">
+    <div class="section-header">
+      <div>
+        <h2 class="section-title"> <span>Рекомендуем сегодня</span></h2>
+        <p style="color:var(--text-muted);font-size:0.88rem;margin-top:0.2rem">Истории, которые выбирает сообщество</p>
+      </div>
+      <a href="/books" class="btn btn-ghost btn-sm">Все книги →</a>
+    </div>
+    <div class="books-grid">
+      {% for book in featured %}
+        {% include "partials/book_card.html" %}
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
+<!-- Popular + Sidebar -->
+<div class="container">
+  <div style="display:grid;grid-template-columns:1fr 280px;gap:2.5rem;align-items:start;padding:3rem 0">
+
+    <!-- Main content -->
+    <div>
+      <!-- Popular -->
+      <div class="section-header" style="margin-bottom:1.25rem">
+        <div>
+          <h2 class="section-title"> <span>Популярные работы</span></h2>
+          <p style="color:var(--text-muted);font-size:0.88rem;margin-top:0.2rem">По количеству читателей</p>
+        </div>
+        <a href="/books" class="btn btn-ghost btn-sm">Все работы →</a>
+      </div>
+      <div class="books-grid" style="grid-template-columns:repeat(auto-fill,minmax(170px,1fr))">
+        {% for book in popular_books %}
+          {% include "partials/book_card.html" %}
+        {% endfor %}
+      </div>
+
+      <!-- New books -->
+      <div class="section-header" style="margin-top:3rem;margin-bottom:1.25rem">
+        <div>
+          <h2 class="section-title"> <span>Новые поступления</span></h2>
+        </div>
+        <a href="/books?sort=new" class="btn btn-ghost btn-sm">Смотреть все →</a>
+      </div>
+      <div class="books-grid" style="grid-template-columns:repeat(auto-fill,minmax(170px,1fr))">
+        {% for book in new_books %}
+          {% include "partials/book_card.html" %}
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <aside style="position:sticky;top:calc(var(--navbar-h) + 1.5rem);display:flex;flex-direction:column;gap:1.25rem">
+
+      <!-- Trending -->
+      <div style="background:var(--bg-surface);border-radius:var(--radius-lg);border:1px solid var(--border-light);padding:1.25rem;box-shadow:var(--shadow-sm)">
+        <div style="font-family:var(--font-serif);font-size:1.1rem;font-weight:700;color:var(--text-primary);margin-bottom:1rem"> В тренде</div>
+        {% for book in trending %}
+        <a href="/books/{{ book.slug }}" style="display:flex;align-items:flex-start;gap:0.75rem;padding:0.6rem 0;border-bottom:1px solid var(--border-light);text-decoration:none;transition:all 0.2s" class="trending-row">
+          <span style="width:28px;height:28px;border-radius:50%;background:var(--primary-dim);color:var(--primary);font-size:0.78rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">{{ "%02d"|format(loop.index) }}</span>
+          <div style="min-width:0">
+            <div style="font-size:0.88rem;font-weight:600;color:var(--text-primary);line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ book.title }}</div>
+            <div style="font-size:0.76rem;color:var(--text-muted);margin-top:0.15rem">{{ book.author.display_name or book.author.username }} · {{ book.views_count | fmt_number }}</div>
+          </div>
+        </a>
+        {% endfor %}
+      </div>
+
+      <!-- Genre stats -->
+      <div style="background:var(--bg-surface);border-radius:var(--radius-lg);border:1px solid var(--border-light);padding:1.25rem;box-shadow:var(--shadow-sm)">
+        <div style="font-family:var(--font-serif);font-size:1.1rem;font-weight:700;color:var(--text-primary);margin-bottom:1rem"> Жанры</div>
+        {% for g in genre_stats %}
+        <div style="margin-bottom:0.85rem">
+          <div style="display:flex;justify-content:space-between;font-size:0.82rem;color:var(--text-secondary);margin-bottom:4px">
+            <span>{{ g.icon }} {{ g.label }}</span>
+            <span style="color:var(--text-muted)">{{ g.count }}</span>
+          </div>
+          <div style="height:4px;background:rgba(139,115,85,0.1);border-radius:2px;overflow:hidden">
+            <div style="height:100%;width:{{ g.pct }}%;background:linear-gradient(90deg,var(--primary),var(--primary-light));border-radius:2px"></div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+
+      <!-- Register promo (for guests) -->
+      {% if not current_user %}
+      <div style="background:linear-gradient(135deg,rgba(139,115,85,0.08),rgba(196,164,132,0.12));border-radius:var(--radius-lg);border:1px solid rgba(139,115,85,0.2);padding:1.25rem">
+        <div style="font-family:var(--font-serif);font-size:1.05rem;font-weight:700;color:var(--text-primary);margin-bottom:0.5rem">Присоединяйтесь</div>
+        <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:1rem;line-height:1.5">Публикуйте истории, сохраняйте избранное и следите за авторами.</p>
+        <a href="/auth/register" class="btn btn-primary btn-full">Регистрация — бесплатно</a>
+      </div>
+      {% endif %}
+
+    </aside>
+  </div>
+</div>
+
+<!-- Genres row -->
+{% if genres %}
+<section class="section" style="background:rgba(255,243,224,0.3);border-top:1px solid var(--border-light);border-bottom:1px solid var(--border-light);padding:1.5rem 0">
+  <div class="container">
+    <div class="genre-chips">
+      {% for g in genres %}
+        <a href="/books?genre={{ g.id }}" class="genre-chip">{{ g.icon }} {{ g.label }}</a>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_scripts %}
+<style>
+.trending-row:hover { background: rgba(139,115,85,0.04); border-radius: var(--radius-sm); margin: 0 -0.5rem; padding-left: 0.5rem; padding-right: 0.5rem; }
+.trending-row:last-child { border-bottom: none; }
+@media(max-width:900px) {
+  .container > div[style*="grid-template-columns:1fr 280px"] { grid-template-columns: 1fr !important; }
+  aside[style*="sticky"] { position: static !important; }
+}
+</style>
+{% endblock %}

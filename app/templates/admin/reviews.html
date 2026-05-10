@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Отзывы — Панель — {{ site_name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="admin-layout">
+    <aside>{% include "admin/sidebar.html" %}</aside>
+    <div style="min-width:0;">
+      <div class="page-header"><h1>Отзывы</h1><p>Всего: {{ total }}</p></div>
+      <div class="table-wrap" style="overflow-x:auto;">
+        <table style="table-layout:fixed;width:100%;min-width:700px;">
+          <colgroup>
+            <col style="width:18%;">
+            <col style="width:12%;">
+            <col style="width:8%;">
+            <col style="width:42%;">
+            <col style="width:8%;">
+            <col style="width:12%;">
+          </colgroup>
+          <thead>
+            <tr>
+              <th>Книга</th>
+              <th>Пользователь</th>
+              <th>Рейтинг</th>
+              <th>Текст</th>
+              <th>Скрыт</th>
+              <th>Действия</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in reviews %}
+            <tr>
+              <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                <a href="/books/{{ r.book.slug }}" title="{{ r.book.title }}">{{ r.book.title[:25] }}{% if r.book.title|length > 25 %}…{% endif %}</a>
+              </td>
+              <td style="color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                <a href="/profile/{{ r.user.username }}">{{ r.user.username }}</a>
+              </td>
+              <td style="color:var(--primary)">{{ "%.1f"|format(r.rating) }}</td>
+              <td style="color:var(--text-muted);word-break:break-word;white-space:normal;font-size:0.85rem;">
+                {{ (r.text or '')[:120] }}{% if r.text and r.text|length > 120 %}…{% endif %}
+              </td>
+              <td>{{ 'Да' if r.is_hidden else '—' }}</td>
+              <td>
+                <form method="post" action="/admin/reviews/{{ r.id }}/hide">
+                  <button type="submit" class="btn btn-sm {% if r.is_hidden %}btn-outline{% else %}btn-danger{% endif %}">
+                    {{ 'Показать' if r.is_hidden else 'Скрыть' }}
+                  </button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if pages > 1 %}
+      <nav class="pagination">
+        {% for p in range(1, pages+1) %}
+          <a href="/admin/reviews?page={{ p }}" class="page-link {% if p == page %}active{% endif %}">{{ p }}</a>
+        {% endfor %}
+      </nav>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

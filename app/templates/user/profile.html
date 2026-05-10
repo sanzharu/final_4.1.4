@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block title %}{{ profile_user.display_name or profile_user.username }} — {{ site_name }}{% endblock %}
+
+{% block extra_scripts %}
+<script>
+{% if current_user and current_user.id != profile_user.id %}
+var _following = false;
+var _username = '{{ profile_user.username }}';
+
+async function checkFollowing() {
+  try {
+    var r = await fetch('/api/users/' + _username + '/following');
+    if (r.ok) {
+      var d = await r.json();
+      _following = d.following;
+      updateFollowBtn();
+    }
+  } catch(e) {}
+}
+
+function updateFollowBtn() {
+  var btn = document.getElementById('follow-btn');
+  if (!btn) return;
+  btn.textContent = _following ? '✓ Вы подписаны' : '+ Подписаться';
+  btn.style.borderColor = _following ? 'var(--primary)' : '';
+  btn.style.color = _following ? 'var(--primary)' : '';
+}
+
+async function toggleFollow() {
+  var btn = document.getElementById('follow-btn');
+  if (btn) btn.disabled = true;
+  try {
+    var r = await fetch('/api/users/' + _username + '/follow', {method:'POST'});
+    if (r.ok) {
+      var d = await r.json();
+      _following = d.following;
+      updateFollowBtn();
+      var countEl = document.getElementById('followers-count');
+      if (countEl && d.followers_count !== undefined) countEl.textContent = d.followers_count;
+    }
+  } catch(e) { showToast && showToast('Ошибка', 'error'); }
+  if (btn) btn.disabled = false;
+}
+
+checkFollowing();
+{% endif %}
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="container" style="padding-top:calc(var(--navbar-h) + 2rem);padding-bottom:3rem;">
+
+  <!-- Profile card -->
+  <div style="background:var(--bg-surface);border-radius:var(--radius-xl);border:1px solid var(--border-light);box-shadow:var(--shadow-md);padding:2rem;margin-bottom:3rem;">
+    <div style="display:flex;gap:2rem;align-items:flex-start;flex-wrap:wrap;">
+
+      <!-- Avatar -->
+      <div style="flex-shrink:0;">
+        <div style="width:88px;height:88px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--primary-light));color:white;font-size:2rem;font-weight:700;display:flex;align-items:center;justify-content:center;overflow:hidden;box-shadow:var(--shadow-md);">
+          {% if profile_user.avatar_url %}
+            <img src="{{ profile_user.avatar_url }}" alt="" style="width:100%;height:100%;object-fit:cover;">
+          {% else %}
+            {{ (profile_user.display_name or profile_user.username)[0] | upper }}
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Info -->
+      <div style="flex:1;min-width:0;">
+        <div style="font-family:var(--font-serif);font-size:1.5rem;font-weight:700;margin-bottom:0.15rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+          {{ profile_user.display_name or profile_user.username }}
+        </div>
+        <div style="font-family:var(--font-sans);font-size:0.85rem;color:var(--text-muted);margin-bottom:0.5rem;">
+          @{{ profile_user.username }}
+        </div>
+        <div style="margin-bottom:0.6rem;">
+          <span class="role-badge">{{ profile_user.role | role_badge }}</span>
+        </div>
+        {% if profile_user.bio %}
+          <p style="color:var(--text-secondary);font-size:0.92rem;line-height:1.6;margin-bottom:0.6rem;max-width:480px;">{{ profile_user.bio }}</p>
+        {% endif %}
+        {% if profile_user.website %}
+          <div style="margin-bottom:0.6rem;">
+            <a href="{{ profile_user.website }}" target="_blank" rel="noopener noreferrer"
+               style="font-family:var(--font-sans);font-size:0.82rem;color:var(--primary);">{{ profile_user.website }}</a>
+          </div>
+        {% endif %}
+        <div style="font-family:var(--font-sans);font-size:0.78rem;color:var(--text-muted);">
+          На сайте с {{ profile_user.created_at | fmt_date }}
+        </div>
+        {% if current_user and current_user.id == profile_user.id %}
+          <div style="margin-top:1rem;">
+            <a href="/settings" class="btn btn-outline btn-sm">Редактировать профиль</a>
+          </div>
+        {% elif current_user %}
+          <div style="margin-top:1rem;">
+            <button id="follow-btn" class="btn btn-outline btn-sm" onclick="toggleFollow()"
+                    data-username="{{ profile_user.username }}"
+                    style="min-width:130px;">
+              Загрузка...
+            </button>
+          </div>
+        {% endif %}
+      </div>
+
+      <!-- Stats -->
+      <div style="display:flex;gap:2rem;flex-shrink:0;padding-top:0.25rem;">
+        <div style="text-align:center;">
+          <div style="font-family:var(--font-serif);font-size:1.5rem;font-weight:700;color:var(--primary);">{{ profile_user.works_count }}</div>
+          <div style="font-family:var(--font-sans);font-size:0.75rem;color:var(--text-muted);">работ</div>
+        </div>
+        <div style="text-align:center;">
+          <div id="followers-count" style="font-family:var(--font-serif);font-size:1.5rem;font-weight:700;color:var(--primary);">{{ profile_user.followers_count }}</div>
+          <div style="font-family:var(--font-sans);font-size:0.75rem;color:var(--text-muted);">подписчиков</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Books -->
+  {% if books %}
+  <div>
+    <div class="section-header" style="margin-bottom:1.5rem;">
+      <h2 class="section-title">Книги автора</h2>
+    </div>
+    <div class="books-grid">
+      {% for book in books %}
+      <div style="position:relative;">
+        {% if is_own and not book.is_published %}
+          <div style="position:absolute;top:0.5rem;left:0.5rem;z-index:2;background:#f59e0b;color:white;font-size:0.7rem;font-weight:700;padding:0.15rem 0.5rem;border-radius:4px;font-family:var(--font-sans);">Черновик</div>
+        {% endif %}
+        {% include "partials/book_card.html" %}
+      </div>
+    {% endfor %}
+    </div>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <h3>{% if current_user and current_user.id == profile_user.id %}Книг пока нет{% else %}Нет опубликованных книг{% endif %}</h3>
+    {% if current_user and current_user.id == profile_user.id and current_user.can_publish %}
+      <div style="margin-top:1.25rem;">
+        <a href="/write/new" class="btn btn-primary btn-lg">Написать первую книгу</a>
+      </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

@@ -1,0 +1,53 @@
+<article class="book-card card-hover">
+  <a href="/books/{{ book.slug }}" class="book-card-link" tabindex="0">
+    <div class="book-cover book-cover-gradient
+      {%- if book.genre %} cover-{{ book.genre.value }}{% endif %}">
+      {% if book.cover_url %}
+        <img src="{{ book.cover_url }}" alt="{{ book.title }}" loading="lazy">
+      {% endif %}
+      <div class="book-cover-text">
+        <h3 class="book-cover-title">{{ book.title }}</h3>
+        <div class="book-cover-author">{{ book.author.display_name or book.author.username }}</div>
+      </div>
+      {% if book.is_featured %}
+        <span class="book-cover-badge">Выбор редакции</span>
+      {% elif book.status and book.status.value == 'completed' %}
+        <span class="book-cover-badge bca-green">Завершено</span>
+      {% endif %}
+    </div>
+  </a>
+
+  <div class="book-info">
+    <div class="book-pill-row">
+      {% if book.direction == 'gen' %}
+        <span class="pill-gen">Джен</span>
+      {% elif book.direction == 'het' %}
+        <span class="pill-het">Гет</span>
+      {% endif %}
+      {% if book.status %}
+        {% if book.status.value == 'ongoing' %}<span class="pill-ongoing">В процессе</span>
+        {% elif book.status.value == 'completed' %}<span class="pill-done">Завершено</span>
+        {% elif book.status.value == 'hiatus' %}<span class="pill-hiatus">Пауза</span>
+        {% elif book.status.value == 'draft' %}<span class="pill-draft">Черновик</span>
+        {% endif %}
+      {% endif %}
+      {% if book.is_adult %}<span class="pill-adult">18+</span>{% endif %}
+    </div>
+
+    {% if book.genre %}
+      <div><a href="/catalog?genre={{ book.genre.value }}" class="book-genre-tag">{{ book.genre.value | genre_label }}</a></div>
+    {% endif %}
+
+    {% if book.description %}
+      <p class="book-desc">{{ book.description }}</p>
+    {% endif %}
+
+    <div class="book-meta" style="margin-top:auto;">
+      {% if book.avg_rating and book.avg_rating > 0 %}
+        <span class="book-rating">★ {{ "%.1f"|format(book.avg_rating) }}</span>
+      {% endif %}
+      <span>{{ book.views_count | fmt_number }}</span>
+      <span>{{ book.chapters_count }} гл.</span>
+    </div>
+  </div>
+</article>

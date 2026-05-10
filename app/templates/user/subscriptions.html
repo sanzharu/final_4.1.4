@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}Подписки — {{ site_name }}{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width:900px;margin:2rem auto;padding:0 1rem;">
+
+  <h1 style="font-family:var(--font-serif);font-size:1.8rem;font-weight:700;margin-bottom:1.5rem;">Мои подписки</h1>
+
+  <!-- Tabs -->
+  <div style="display:flex;gap:0.5rem;margin-bottom:2rem;border-bottom:2px solid var(--border-light);padding-bottom:0;">
+    <a href="/subscriptions?tab=authors"
+       style="padding:0.6rem 1.25rem;font-family:var(--font-sans);font-size:0.9rem;font-weight:600;text-decoration:none;border-radius:8px 8px 0 0;transition:all .15s;
+              {% if tab == 'authors' %}background:var(--primary);color:white;{% else %}color:var(--text-muted);background:transparent;{% endif %}">
+      Авторы
+      {% if followed_users %}<span style="margin-left:0.35rem;background:{% if tab == 'authors' %}rgba(255,255,255,0.25){% else %}var(--border-light){% endif %};border-radius:99px;padding:0.1rem 0.45rem;font-size:0.78rem;">{{ followed_users|length }}</span>{% endif %}
+    </a>
+    <a href="/subscriptions?tab=books"
+       style="padding:0.6rem 1.25rem;font-family:var(--font-sans);font-size:0.9rem;font-weight:600;text-decoration:none;border-radius:8px 8px 0 0;transition:all .15s;
+              {% if tab == 'books' %}background:var(--primary);color:white;{% else %}color:var(--text-muted);background:transparent;{% endif %}">
+      Книги
+      {% if subscribed_books %}<span style="margin-left:0.35rem;background:{% if tab == 'books' %}rgba(255,255,255,0.25){% else %}var(--border-light){% endif %};border-radius:99px;padding:0.1rem 0.45rem;font-size:0.78rem;">{{ subscribed_books|length }}</span>{% endif %}
+    </a>
+  </div>
+
+  {% if tab == 'authors' %}
+    {% if followed_users %}
+      <div style="display:flex;flex-direction:column;gap:1rem;">
+        {% for author in followed_users %}
+        <div style="display:flex;align-items:center;gap:1rem;background:var(--bg-surface);border:1px solid var(--border-light);border-radius:14px;padding:1rem 1.25rem;">
+          <div style="width:48px;height:48px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:1.1rem;flex-shrink:0;">
+            {% if author.avatar_url %}
+              <img src="{{ author.avatar_url }}" style="width:48px;height:48px;border-radius:50%;object-fit:cover;">
+            {% else %}
+              {{ (author.display_name or author.username)[0].upper() }}
+            {% endif %}
+          </div>
+          <div style="flex:1;min-width:0;">
+            <a href="/profile/{{ author.username }}" style="font-family:var(--font-serif);font-weight:700;font-size:1rem;color:var(--text-primary);text-decoration:none;">
+              {{ author.display_name or author.username }}
+            </a>
+            <div style="font-size:0.8rem;color:var(--text-muted);margin-top:0.1rem;">@{{ author.username }}</div>
+          </div>
+          <button onclick="unfollowAuthor('{{ author.username }}', this)"
+                  style="padding:0.45rem 1.1rem;border-radius:8px;border:1.5px solid var(--primary);background:transparent;font-family:var(--font-sans);font-size:0.82rem;font-weight:600;cursor:pointer;color:var(--primary);white-space:nowrap;transition:background .15s,color .15s;"
+                  onmouseover="this.style.background='var(--primary)';this.style.color='white';"
+                  onmouseout="this.style.background='transparent';this.style.color='var(--primary)';">
+            Отписаться
+          </button>
+        </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1.2" style="margin-bottom:1rem;opacity:0.5;"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <h3 style="font-family:var(--font-serif);font-size:1.25rem;font-weight:700;">Вы ещё ни на кого не подписаны</h3>
+        <p style="color:var(--text-muted);margin-top:0.5rem;">Посетите профиль автора и нажмите «+ Подписаться»</p>
+        <a href="/catalog" class="btn btn-primary" style="margin-top:1.25rem;">Найти авторов в каталоге</a>
+      </div>
+    {% endif %}
+
+  {% else %}
+    {% if subscribed_books %}
+      <div class="books-grid">
+        {% for book in subscribed_books %}
+          {% include "partials/book_card.html" %}
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1.2" style="margin-bottom:1rem;opacity:0.5;"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+        <h3 style="font-family:var(--font-serif);font-size:1.25rem;font-weight:700;">Нет отслеживаемых книг</h3>
+        <a href="/catalog" class="btn btn-primary" style="margin-top:1.25rem;">Перейти в каталог</a>
+      </div>
+    {% endif %}
+  {% endif %}
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+async function unfollowAuthor(username, btn) {
+  btn.disabled = true;
+  btn.textContent = '...';
+  try {
+    const r = await fetch('/api/users/' + username + '/follow', {method: 'POST'});
+    if (r.ok) {
+      const row = btn.closest('div[style*="border-radius:14px"]');
+      if (row) {
+        row.style.opacity = '0';
+        row.style.transition = 'opacity .3s';
+        setTimeout(() => row.remove(), 300);
+      }
+    }
+  } catch(e) {}
+  btn.disabled = false;
+}
+</script>
+{% endblock %}
